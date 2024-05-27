@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>
+    {% if title %}
+        Notification Mail - {{title}}
+    {% else %}
+        Notification Mail
+    {% endif %}
+    </title>
+    <link href="{{ url_for('static', filename='css/base.css') }}" rel="stylesheet">
+</head>
+<body>
+{% block body %}
+
+{% endblock %}
+</body>
+</html>
