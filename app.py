@@ -173,15 +173,15 @@ def results():
 
     split_files = [f.split('_')[0] for f in os.listdir(folder)]
 
-    active_users = User.query.all()
-    active_ippis = [user.ippis for user in active_users]
+    db_found = User.query.all()
+    db_ippis = [user.ippis for user in db_found]
 
-    found_users = set(split_files)
-    db_users = set(active_ippis)
+    file_users = set(split_files)
+    db_users = set(db_ippis)
 
-    active_found = found_users & db_users
-    inactive = db_users - found_users
-    unknown = found_users - db_users
+    active_found = file_users & db_users  # in db and pdf files
+    inactive = file_users - db_users  # in pdf files but not in db
+    unknown = db_users - file_users  # in db but not in pdf files
 
     ActiveUser.query.delete()
     InactiveUser.query.delete()
@@ -226,8 +226,6 @@ def back_to_result():
     active = session['active_count']
     inactive = session['inactive_count']
     unknown = session['unknown_count']
-
-    # print(f"Session retrieved: folder={folder}, active={active}, inactive={inactive}, unknown={unknown}")
 
     return render_template('results.html', active=active, inactive=inactive, unknown=unknown,
                            folder=folder)
