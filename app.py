@@ -2,16 +2,19 @@ import os
 import shutil as sh
 import time
 from threading import Thread
+from urllib.parse import quote, unquote
 
 from PyPDF2 import PdfReader, PdfWriter
-from flask import Flask, render_template, url_for, request, redirect, jsonify
+from flask import Flask, render_template, url_for, request, redirect, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
 app = Flask(__name__)
+app.secret_key = os.urandom(32)
 base_dir = os.path.abspath('data')
 db_path = os.path.join(base_dir, 'db.sqlite')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 progress = {}
@@ -19,9 +22,14 @@ progress = {}
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
     ippis = db.Column(db.String(20), unique=True, nullable=False)
+    email = db.Column(db.String(100), nullable=False)
     active = db.Column(db.Boolean, default=False)
+
+    def __init__(self, email, ippis, active=False):
+        self.email = email
+        self.ippis = ippis
+        self.active = active
 
 
 class ActiveUser(db.Model):
@@ -58,22 +66,20 @@ def detail_extract(file_page):
     return new_name
 
 
-def splitter(filename):
+# Splitter function to process PDF
+def splitter(filename, task_id):
     if str(filename).endswith('.pdf'):
         file_folder = filename.split('.')[0]
         folder_path = os.path.join(base_dir, file_folder)
-        print(file_folder, folder_path, end='\n')
+
         if os.path.exists(folder_path):
             sh.rmtree(folder_path)
-            print(f'{file_folder} removed from {base_dir}')
 
         os.makedirs(folder_path)
 
         file_path = str(os.path.join(base_dir, filename))
-        print(file_path)
         pdf_reader = PdfReader(file_path)
         pages = len(pdf_reader.pages)
-        print(f'Length of pages {pages}')
 
         for i in range(pages):
             pdf_writer = PdfWriter()
@@ -85,13 +91,10 @@ def splitter(filename):
 
             pswd = f'{name[0][-2:]}{name[1][-2:]}'
             pdf_writer.encrypt(pswd)
-            print(f'Encrypted {name} with {pswd}')
 
             name = f'{name[0]}_{name[1]}_{name[2]}_{name[3]}.pdf'
-            print(f'Extracted {name}')
 
             file_name = str(os.path.join(base_dir, filename.split('.')[0], name))
-            print(f'Writing {file_name}')
             with open(file_name, 'wb') as f:
                 pdf_writer.write(f)
 
@@ -112,7 +115,7 @@ def index():
 
 @app.route("/upload/", methods=['POST'])
 def upload():
-    file = request.files['file']
+    file = request.files.get('file')
     filename = str(file.filename)
 
     if not os.path.exists(base_dir):
@@ -132,28 +135,42 @@ def upload():
 
 @app.route('/split_enc/', methods=['POST'])
 def split_enc():
-    file = request.form['file']
+    file = request.form.get('file')
     task_id = str(time.time())  # Generate a unique task ID
     progress[task_id] = 0  # Initialize progress
-    print(file)
     file_path = os.path.join(base_dir, file.split('.')[0])
-    print(file_path)
+    folder_encoded = quote(file_path)
 
     # Run the splitter function in the background
     thread = Thread(target=splitter, args=(file, task_id))
     thread.start()
 
-    return render_template('progress.html', task_id=task_id)
+    return render_template('progress.html', task_id=task_id, folder=folder_encoded)
 
 
-@app.route('/progress/<task_id>', methods=['GET'])
-def get_progress(task_id):
-    return jsonify(progress=progress.get(task_id, 0))
+@app.route('/progress/<task_id>')
+def progress_status(task_id):
+    return jsonify({'progress': progress.get(task_id, 0)})
 
 
-@app.route('/query_db/<task_id>', methods=['GET'])
-def query_db(task_id):
-    folder = request.args['folder']
+@app.route('/query_db/', methods=['GET', 'POST'])
+def query_db():
+    folder = request.form['folder']
+    if not folder:
+        return redirect(url_for('index'))
+
+    folder = unquote(folder)
+    return render_template('query_db.html', folder=folder)
+
+
+@app.route('/results/', methods=['POST'])
+def results():
+    folder_encoded = request.form.get('folder')
+    if not folder_encoded:
+        return redirect(url_for('index'))
+
+    folder = unquote(folder_encoded)
+
     split_files = [f.split('_')[0] for f in os.listdir(folder)]
 
     active_users = User.query.filter_by(active=True).all()
@@ -175,7 +192,13 @@ def query_db(task_id):
     db.session.bulk_insert_mappings(UnknownUser, [{'ippis': ippis} for ippis in unknown])
     db.session.commit()
 
-    return render_template('results.html', active=len(active_found), inactive=len(inactive), unknown=len(unknown))
+    session['folder'] = folder_encoded
+    session['active_count'] = len(active_found)
+    session['inactive_count'] = len(inactive)
+    session['unknown_count'] = len(unknown)
+
+    return render_template('results.html', active=len(active_found), inactive=len(inactive), unknown=len(unknown),
+                           folder=folder)
 
 
 @app.route('/select_folder/')
@@ -183,19 +206,46 @@ def select_folder():
     return 'Hello World! Select Folder'
 
 
-@app.route('/view_csv/')
-def view_csv():
-    return render_template(url_for('view'))
+@app.route('/view_users/<category>/', methods=['GET', 'POST'])
+def view_users(category):
+    if category == 'active':
+        users = ActiveUser.query.all()
+    elif category == 'inactive':
+        users = InactiveUser.query.all()
+    elif category == 'unknown':
+        users = UnknownUser.query.all()
+    else:
+        return redirect(url_for('index'))
+
+    return render_template('view_users.html', category=category, users=users)
 
 
-@app.route('/select_view/')
-def select_view():
-    return 'Hello World! Select View'
+@app.route('/back_to_result/')
+def back_to_result():
+    folder = unquote(session['folder'])
+    active = session.get('active', 0)
+    inactive = session.get('inactive', 0)
+    unknown = session.get('unknown', 0)
+
+    return render_template('results.html', active=active, inactive=inactive, unknown=unknown,
+                           folder=folder)
 
 
-@app.route('/results/')
-def results():
-    return 'Hello World! Results'
+@app.route("/add_user/", methods=['GET', 'POST'])
+def add_user():
+    if request.method == 'POST':
+        email = request.form['email']
+        ippis = request.form['ippis']
+        active = 'active' in request.form
+
+        new_user = User(email=email, ippis=ippis, active=active)
+        db.session.add(new_user)
+        db.session.commit()
+
+        print(f'User {email} added successfully.')
+        return redirect(url_for('index'))
+
+    return render_template('add_user.html')
 
 
 @app.route('/send_mail/', methods=['GET', 'POST'])

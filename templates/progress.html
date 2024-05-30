@@ -1,33 +1,37 @@
 {% extends 'base.html' %}
 {% block body %}
-    <div id="progress-container">
-        <h2>Encryption Progress</h2>
-        <div id="progress-bar" style="width: 0%; background: green; height: 30px;"></div>
-        <div id="progress-text">0%</div>
+    <h2>Progress</h2>
+    <div id="progress-bar" style="width: 100%; background-color: #f3f3f3;">
+        <div id="progress" style="width: 0; height: 30px; background-color: #4caf50;"></div>
     </div>
+    <p id="progress-text">0% complete</p>
     <script>
-        const taskId = "{{ task_id }}";
-        const progressBar = document.getElementById('progress-bar');
-        const progressText = document.getElementById('progress-text');
+        const task_id = "{{ task_id }}";
 
-        function updateProgress() {
-            fetch(`/progress/${taskId}`)
+        function checkProgress() {
+            fetch('/progress/' + task_id)
                 .then(response => response.json())
                 .then(data => {
                     const progress = data.progress;
-                    progressBar.style.width = progress + '%';
-                    progressText.innerText = progress.toFixed(2) + '%';
+                    document.getElementById('progress').style.width = progress + '%';
+                    document.getElementById('progress-text').innerText = progress.toFixed(2) + '% complete';
                     if (progress < 100) {
-                        setTimeout(updateProgress, 500);
+                        setTimeout(checkProgress, 1000);  // Check progress every second
                     } else {
-                        progressText.innerText = 'Encryption Complete!';
-                        setTimeout(() => {
-                            window.location.href = `/query_db/${taskId}?folder={{ folder }}`;
-                        }, 1000);
+                        // Use a form to submit the folder via POST
+                        var form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '/query_db/';
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'folder';
+                        input.value = '{{ folder }}';
+                        form.appendChild(input);
+                        document.body.appendChild(form);
+                        form.submit();
                     }
                 });
         }
-
-        updateProgress();
+        checkProgress();
     </script>
 {% endblock %}

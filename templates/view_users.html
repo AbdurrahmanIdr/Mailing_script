@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block body %}
+    <div class="container">
+        <h2>{{ category.capitalize() }} Users</h2>
+        <ul class="users-list">
+            {% for user in users %}
+                <li class="user-item">{{ user.ippis }}</li>
+            {% endfor %}
+        </ul>
+        <a href="{{ url_for('back_to_result') }}"><button>Back to Results</button></a>
+    </div>
+{% endblock %}

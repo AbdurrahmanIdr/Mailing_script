@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
-
 {% block body %}
-<p>Welcome to {{ folder }}</p>
+    <form action="{{ url_for('results') }}" method="post">
+        <input type="hidden" name="folder" value="{{ folder }}">
+        <button type="submit">Query Database</button>
+    </form>
 {% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block body %}
+    <h2>Add a New User</h2>
+    <form method="post" action="{{ url_for('add_user') }}">
+        <label for="email">Name:</label>
+        <input type="text" name="email" id="email" required>
+
+        <label for="ippis">IPPIS Number:</label>
+        <input type="text" name="ippis" id="ippis" required>
+
+        <label for="active">Active:</label>
+        <input type="checkbox" name="active" id="active">
+
+        <button type="submit">Add User</button>
+    </form>
+{% endblock %}

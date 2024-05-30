@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block body %}
+    <h2>Query Results</h2>
+    <p>Active users found: {{ active }} <a href="{{ url_for('view_users', category='active') }}">View</a></p>
+    <p>Inactive users: {{ inactive }} <a href="{{ url_for('view_users', category='inactive') }}">View</a></p>
+    <p>Unknown users: {{ unknown }} <a href="{{ url_for('view_users', category='unknown') }}">View</a></p>
+    <form action="{{ url_for('send_mail') }}" method="post">
+        <input type="hidden" name="folder" value="{{ folder }}">
+        <button type="submit">Send Mail</button>
+    </form>
+{% endblock %}
