@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
 {% block body %}
     <h2>Progress</h2>
-    <div id="progress-bar" style="width: 100%; background-color: #f3f3f3;">
-        <div id="progress" style="width: 0; height: 30px; background-color: #4caf50;"></div>
+    <div id="progress-container">
+        <div id="progress-bar-outer">
+            <div id="progress-bar-inner"></div>
+        </div>
+        <div id="progress-text">0% complete</div>
     </div>
-    <p id="progress-text">0% complete</p>
+
     <script>
         const task_id = "{{ task_id }}";
 
@@ -13,16 +16,16 @@
                 .then(response => response.json())
                 .then(data => {
                     const progress = data.progress;
-                    document.getElementById('progress').style.width = progress + '%';
+                    document.getElementById('progress-bar-inner').style.width = progress + '%';
                     document.getElementById('progress-text').innerText = progress.toFixed(2) + '% complete';
                     if (progress < 100) {
                         setTimeout(checkProgress, 1000);  // Check progress every second
                     } else {
                         // Use a form to submit the folder via POST
-                        var form = document.createElement('form');
+                        const form = document.createElement('form');
                         form.method = 'POST';
                         form.action = '/query_db/';
-                        var input = document.createElement('input');
+                        const input = document.createElement('input');
                         input.type = 'hidden';
                         input.name = 'folder';
                         input.value = '{{ folder }}';

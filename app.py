@@ -173,7 +173,7 @@ def results():
 
     split_files = [f.split('_')[0] for f in os.listdir(folder)]
 
-    active_users = User.query.filter_by(active=True).all()
+    active_users = User.query.all()
     active_ippis = [user.ippis for user in active_users]
 
     found_users = set(split_files)
@@ -223,9 +223,11 @@ def view_users(category):
 @app.route('/back_to_result/')
 def back_to_result():
     folder = unquote(session['folder'])
-    active = session.get('active', 0)
-    inactive = session.get('inactive', 0)
-    unknown = session.get('unknown', 0)
+    active = session['active_count']
+    inactive = session['inactive_count']
+    unknown = session['unknown_count']
+
+    # print(f"Session retrieved: folder={folder}, active={active}, inactive={inactive}, unknown={unknown}")
 
     return render_template('results.html', active=active, inactive=inactive, unknown=unknown,
                            folder=folder)

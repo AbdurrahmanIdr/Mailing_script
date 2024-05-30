@@ -1,14 +1,15 @@
 {% extends 'base.html' %}
 {% block body %}
     <h2>Add a New User</h2>
-    <form method="post" action="{{ url_for('add_user') }}">
-        <label for="email">Name:</label>
-        <input type="text" name="email" id="email" required>
+    <form method="post" action="{{ url_for('add_user') }}" style="width: 50%">
 
-        <label for="ippis">IPPIS Number:</label>
-        <input type="text" name="ippis" id="ippis" required>
+        <label for="email" >Email:</label>
+        <input type="text" name="email" id="email" required> <br>
 
-        <label for="active">Active:</label>
+        <label for="ippis" >IPPIS Number:</label>
+        <input type="text" name="ippis" id="ippis" required> <br>
+
+        <label for="active" style="display: inline">Active:</label>
         <input type="checkbox" name="active" id="active">
 
         <button type="submit">Add User</button>
