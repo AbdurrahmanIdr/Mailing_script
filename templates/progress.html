@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block body %}
+    <div id="progress-container">
+        <h2>Encryption Progress</h2>
+        <div id="progress-bar" style="width: 0%; background: green; height: 30px;"></div>
+        <div id="progress-text">0%</div>
+    </div>
+    <script>
+        const taskId = "{{ task_id }}";
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+
+        function updateProgress() {
+            fetch(`/progress/${taskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const progress = data.progress;
+                    progressBar.style.width = progress + '%';
+                    progressText.innerText = progress.toFixed(2) + '%';
+                    if (progress < 100) {
+                        setTimeout(updateProgress, 500);
+                    } else {
+                        progressText.innerText = 'Encryption Complete!';
+                        setTimeout(() => {
+                            window.location.href = `/query_db/${taskId}?folder={{ folder }}`;
+                        }, 1000);
+                    }
+                });
+        }
+
+        updateProgress();
+    </script>
+{% endblock %}
