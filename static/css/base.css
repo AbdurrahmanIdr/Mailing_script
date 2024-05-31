@@ -12,10 +12,21 @@ body {
 }
 
 .container {
-    width: 80%;
-    max-width: 1200px;
+    max-width: 70%;
     margin: 0 auto;
-    padding: 20px 20px 100px;
+    background-color: #fff;
+    padding: 30px 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.fixed-button {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    background-color: #f1f1f1;
+    padding: 10px;
+    text-align: center;
 }
 
 /* Header Styles */
@@ -31,6 +42,24 @@ header h1 {
     margin: 0;
     font-size: 36px;
     font-weight: bold;
+}
+
+.header {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.header-div {
+    display: inherit;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.search-form {
+    margin-left: auto;
 }
 
 /* Form Styles */
@@ -92,6 +121,22 @@ form button:hover {
     transform: translateY(-2px);
 }
 
+/* Styles for the view file page */
+#file-path-btn {
+    background-color: #3498db;
+    color: white;
+    padding: 10px;
+    border: none;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+#file-path-display {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #333;
+}
+
 /* Progress Bar Styles */
 #progress-container {
     margin-top: 30px;
@@ -129,9 +174,35 @@ h2 {
     margin-bottom: 20px;
 }
 
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 p {
     font-size: 18px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 button {
@@ -227,6 +298,14 @@ footer {
     p {
         font-size: 16px;
     }
+
+    table {
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 8px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -258,5 +337,13 @@ footer {
 
     p {
         font-size: 14px;
+    }
+
+    table {
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 8px;
     }
 }

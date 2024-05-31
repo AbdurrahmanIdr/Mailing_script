@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block body %}
+    <div class="header">
+        <h1>Search Results for "{{ query }}"</h1>
+        <!-- Search Box -->
+        <form action="{{ url_for('search') }}" method="GET" class="search-form">
+            <input type="text" id="search" name="query" placeholder="Enter file or folder name">
+            <button type="submit">Search</button>
+            <input type="hidden" name="dir" value="{{ current_directory }}">
+        </form>
+    </div>
+
+    <div class="dir-content">
+        <form id="file-selection-form" action="{{ url_for('retrieve_selected_path') }}" method="post">
+
+            <table>
+                <thead>
+                <tr>
+                    <th>Select</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Last Modified</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for file in files %}
+                    <tr>
+                        <td>
+                            <input type="radio" name="selected_file"
+                                   value="{{ (current_directory / file['path']).resolve() }}">
+
+                        </td>
+                        <td>
+                            {% if current_directory.name == '//' %}
+                                <a href="{{ url_for('directories', rel_directory=file['path']) }}">{{ file['name'] }}</a>
+                            {% else %}
+                                {% if file['is_file'] %}
+                                    <a href="{{ url_for('view_file', filepath=current_directory / file['path']) }}">{{ file['name'] }}</a>
+                                {% else %}
+                                    <a href="{{ url_for('directories', rel_directory=current_directory / file['path']) }}">{{ file['name'] }}</a>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>{% if file['is_file'] %} File {% else %} Directory {% endif %}</td>
+                        <td>{% if file['is_file'] %} {{ file['size'] }} {% endif %}</td>
+                        <td>{% if file['is_file'] %} {{ file['last_modified'] }} {% endif %}</td>
+                        <td>
+                            <form action="{{ url_for('delete_file_or_directory') }}"
+                                  method="post"
+                                  onsubmit="return confirm('Are you sure you want to delete this file/directory?');">
+                                <input type="hidden" name="current_directory" value="{{ current_directory }}">
+                                <input type="hidden" name="path" value="{{ current_directory / file['path'] }}">
+                                <button type="submit">Delete</button>
+                            </form>
+
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <div class="fixed-button">
+                <button type="submit">Select Path</button>
+            </div>
+
+        </form>
+    </div>
+{% endblock %}
+

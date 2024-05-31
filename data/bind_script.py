@@ -2,7 +2,7 @@ from PyPDF2 import PdfWriter, PdfReader
 
 pdf_file = PdfReader('482427_ARAF_MAR-2023.pdf')
 pdfwriter = PdfWriter()
-for i in range(50):
+for i in range(5000):
     pdfwriter.add_page(pdf_file.pages[0])
     
 pdfwriter.write('binded.pdf')

@@ -1,13 +1,15 @@
 import os
 import shutil as sh
 import time
+from datetime import datetime
+from pathlib import Path
 from threading import Thread
 from urllib.parse import quote, unquote
 
 from PyPDF2 import PdfReader, PdfWriter
-from flask import Flask, render_template, url_for, request, redirect, jsonify, session
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template, url_for, request, redirect, jsonify, session, flash
 from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.secret_key = os.urandom(32)
@@ -81,6 +83,8 @@ def splitter(filename, task_id):
         pdf_reader = PdfReader(file_path)
         pages = len(pdf_reader.pages)
 
+        start = time.time()
+
         for i in range(pages):
             pdf_writer = PdfWriter()
             pdf_writer.add_page(pdf_reader.pages[i])
@@ -103,14 +107,122 @@ def splitter(filename, task_id):
             time.sleep(0.1)  # Simulate time taken for processing each page
 
         progress[task_id] = 100  # Ensure progress is marked complete
+        stop = time.time()
+        total_time = stop - start
+        print(f'Total time: {total_time}')
         return True
     return False
 
 
-@app.route("/")
-@app.route('/index/')
-def index():
-    return render_template('index.html')
+def get_sorted_files(directory):
+    """
+       Get a sorted list of directories and files in the given directory.
+
+       Args:
+           directory (str): The directory path.
+
+       Returns:
+           tuple: Sorted list of directories and files.
+       """
+
+    directory = Path(directory)
+
+    try:
+        items = list(directory.iterdir())
+    except (PermissionError, FileNotFoundError) as e:
+        app.logger.warning(f"Error accessing directory: {e}")
+        directory = directory.parent
+        items = list(directory.iterdir())
+
+    dirs = []  # List to store unique directory names
+    files = []  # List to store file names
+
+    # Set to store directory names to avoid repetition
+    seen_dirs = set()
+    seen_files = set()
+
+    for item in items:
+        if item.is_dir() or item.is_file():  # Check if the item is either a directory or a file
+            real_path = item.resolve()  # Resolve symbolic links to get the real path
+            name = real_path.name  # Get the name of the item
+
+            # Exclude files and folders that start with a dot
+            if not name.startswith('.'):
+                if real_path != directory:  # Exclude the current directory from the list
+                    if real_path.is_dir():  # Check if the item is a directory
+                        if name not in seen_dirs:  # Check if the directory name is not repeated
+                            dirs.append(name)  # Append the directory name to the list of directories
+                            seen_dirs.add(name)  # Add the directory name to the set of seen directories
+                    elif real_path.is_file():  # Check if the item is a file
+                        if name not in seen_files:  # Check if the directory name is not repeated
+                            files.append(name)  # Append the file name to the list of files
+                            seen_files.add(name)  # Add the file name to the set of seen files
+
+    return sorted(list(seen_dirs)) + sorted(list(seen_files)), directory
+
+
+@app.template_filter('format_file_size')
+def format_file_size(size_in_bytes):
+    """
+       Format the file size in bytes to a human-readable string.
+
+       Args:
+           size_in_bytes (float): File size in bytes.
+
+       Returns:
+           str: Formatted file size with units.
+       """
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_in_bytes < 1024.0:
+            break
+        size_in_bytes /= 1024.0
+    return f"{size_in_bytes:.2f} {unit}"
+
+
+@app.template_filter('datetimeformat')
+def datetimeformat(value):
+    """
+       Format the given timestamp to a string using the specified format.
+
+       Args:
+           value (float): Timestamp.
+
+       Returns:
+           str: Formatted datetime string.
+       """
+    format_time: str = '%Y-%m-%d %H:%M:%S'
+    return datetime.fromtimestamp(value).strftime(format_time)
+
+
+def get_file_info(file_path):
+    """
+        Get information about a file.
+
+        Args:
+            file_path (Path): Path to the file.
+
+        Returns:
+            dict: File information dictionary.
+        """
+    stat_info = os.stat(file_path)
+
+    file_info = {
+        "File Path": str(file_path),
+        "File Size": format_file_size(stat_info.st_size),
+        "Last Modified": stat_info.st_mtime,
+        "Is Directory": os.path.isdir(file_path),
+        "Is File": os.path.isfile(file_path),
+        "File Extension": str(file_path).split('.')[-1],
+        "File Permissions": oct(stat_info.st_mode)[-3:],
+        "Path Components": file_path.parts,
+    }
+
+    return file_info
+
+
+# @app.route('/index/')
+# def index():
+#     return render_template('index.html')
 
 
 @app.route("/upload/", methods=['POST'])
@@ -127,14 +239,157 @@ def upload():
             os.remove(full_path)
         file.save(full_path)
         print(f'{file.filename} saved successfully at {base_dir}')
-        return render_template('split_enc.html', file=filename)
+        return render_template('directories.html', rel_directory=base_dir)
 
     print(f'{file.filename} failed to upload check the file type != PDF')
-    return redirect(url_for('index'))
+    return redirect(request.url)
 
 
-@app.route('/split_enc/', methods=['POST'])
-def split_enc():
+@app.route("/")
+@app.route('/directories/<str:rel_directory>/')
+def directories(rel_directory):
+    """
+       Render the home page or directory listing page.
+
+       Args:
+           rel_directory (str): Relative path of the directory.
+
+       Returns:
+           render_template: Rendered HTML template.
+       """
+    if os.path.isdir(rel_directory):
+        files, current_directory = get_sorted_files(rel_directory)
+        return render_template('directories.html', files=files, current_directory=current_directory)
+
+
+def search_files(directory, query, depth=3):
+    """
+        Search for files in the specified directory matching the given query.
+
+        Args:
+            directory (Path): Directory to search.
+            query (str): Search query.
+            depth (int): Depth of recursive search.
+
+        Returns:
+            list: List of search results.
+        """
+    search_results = []
+
+    def recursive_search(path, current_depth):
+        if current_depth > depth:
+            return
+
+        for item in path.iterdir():
+            try:
+                if query.lower() in item.name.lower():
+                    search_results.append({
+                        'name': item.name,
+                        'path': str(item.resolve()),
+                        'is_file': item.is_file(),
+                        'size': format_file_size(item.stat().st_size) if item.is_file() else None,
+                        'last_modified': datetime.fromtimestamp(item.stat().st_mtime).strftime(
+                            '%Y-%m-%d %H:%M:%S') if item.is_file() else None,
+                    })
+                if item.is_dir():
+                    recursive_search(item, current_depth + 1)  # Recursively search in subdirectories
+            except PermissionError:
+                continue
+
+    recursive_search(directory, 0)
+    return search_results
+
+
+@app.route('/search/', methods=['POST'])
+def search():
+    """
+       Render the page with search results.
+
+       Returns:
+           render_template: Rendered HTML template.
+       """
+    query = request.form.get('query', '')
+    abs_directory = request.form.get('dir', base_dir)
+    current_directory = Path(abs_directory)
+    search_results = search_files(current_directory, query)
+    return render_template('search_results.html', files=search_results,
+                           current_directory=current_directory.resolve(), query=query)
+
+
+@app.route('/view_file/<path:filepath>/', methods=['GET', 'POST'])
+def view_file(filepath):
+    """
+        Render the page for viewing file metadata.
+
+        Args:
+            filepath (str): Path to the file.
+
+        Returns:
+            render_template: Rendered HTML template.
+        """
+
+    file_path = Path(filepath)
+
+    if not file_path.exists():
+        flash(f"The file '{file_path}' does not exist.")
+        return redirect(request.url)
+
+    file_info = get_file_info(file_path)
+
+    # Handle POST request to retrieve file path
+    if request.method == 'POST':
+        # Logic to retrieve the file path goes here
+        file_path_to_display = str(file_path)
+
+        # Render the template with the file path to display
+        return render_template('view_file.html', file_path=file_path.resolve(), file_info=file_info,
+                               file_path_to_display=file_path_to_display)
+
+    # Render the template for a regular GET request
+    return render_template('view_file.html', file_path=file_path.resolve(), file_info=file_info)
+
+
+@app.route('/delete_file_or_directory/', methods=['POST'])
+def delete_file_or_directory():
+    if request.method == 'POST':
+        path = request.form.get('path')
+        current_directory = request.form.get('current_directory')  # Retrieve current directory from form data
+        current_directory = Path(current_directory)
+        # current_directory = request.referrer
+        try:
+            if os.path.exists(path):
+                if os.path.isfile(path):
+                    os.remove(path)
+                    flash('File deleted successfully!', 'success')
+                elif os.path.isdir(path):
+                    sh.rmtree(path)
+                    flash('Directory deleted successfully!', 'success')
+            else:
+                flash('File or directory does not exist.', 'error')
+        except Exception as e:
+            flash('An error occurred while deleting the file/directory.', f'{e}')
+
+        return redirect(url_for('directories', rel_directory=current_directory))
+
+
+@app.route('/retrieve_selected_path/', methods=['POST'])
+def retrieve_selected_file_path():
+    """
+        Render the page with retrieved selected file paths.
+
+        Returns:
+            render_template: Rendered HTML template.
+        """
+    selected_file = request.form.get('selected_file')
+    if os.path.isdir(selected_file):
+        return redirect(url_for('query_db', folder=selected_file))
+
+    elif os.path.isfile(selected_file):
+        return render_template('split_enc.html', selected_file=selected_file)
+
+
+@app.route('/split_encrypt/', methods=['POST'])
+def split_encrypt():
     file = request.form.get('file')
     task_id = str(time.time())  # Generate a unique task ID
     progress[task_id] = 0  # Initialize progress

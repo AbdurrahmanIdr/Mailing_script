@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div>
+    <h1>File Metadata</h1>
+    <p>File Path: {{ file_path }}</p>
+    <p>File Size: {{ file_info['File Size'] }}</p>
+    <p>Last Modified: {{ file_info['Last Modified'] |
+        datetimeformat('%Y-%m-%d %H:%M:%S') }}</p>
+    <p>Is Directory: {{ file_info['Is Directory'] }}</p>
+    <p>Is File: {{ file_info['Is File'] }}</p>
+    <p>File Extension: {{ file_info['File Extension'] }}</p>
+    <p>File Permissions: {{ file_info['File Permissions'] }}</p>
+    <hr>
+    <h2>Path Components:</h2>
+    <ul>
+        {% for component in file_info['Path Components'] %}
+        <li>{{ component }}</li>
+        {% endfor %}
+    </ul>
+    <hr>
+
+    <div style="text-align: center;">
+        <!-- Form to submit and retrieve the file path -->
+        <form action="{{ url_for('retrieve_selected_path') }}" method="post">
+            <input type="hidden" name="selected_file" value="{{ file_path }}">
+            <button id="file-path-btn" type="submit">Select Path</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
