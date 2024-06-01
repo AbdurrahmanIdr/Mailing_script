@@ -1,12 +1,13 @@
 import os
 import shutil as sh
 import time
+
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
 from urllib.parse import quote, unquote
-
 from PyPDF2 import PdfReader, PdfWriter
+
 from flask import Flask, render_template, url_for, request, redirect, jsonify, session, flash
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -220,9 +221,9 @@ def get_file_info(file_path):
     return file_info
 
 
-# @app.route('/index/')
-# def index():
-#     return render_template('index.html')
+# @app.route('/login/')
+# def login():
+#     return render_template('login.html')
 
 
 @app.route("/upload/", methods=['POST'])
@@ -239,15 +240,16 @@ def upload():
             os.remove(full_path)
         file.save(full_path)
         print(f'{file.filename} saved successfully at {base_dir}')
-        return render_template('directories.html', rel_directory=base_dir)
 
-    print(f'{file.filename} failed to upload check the file type != PDF')
-    return redirect(request.url)
+    else:
+        print(f'{file.filename} failed to upload check the file type != PDF')
+
+    return redirect(url_for('directories'))
 
 
 @app.route("/")
-@app.route('/directories/<str:rel_directory>/')
-def directories(rel_directory):
+@app.route('/directories/<rel_directory>/', methods=['GET', 'POST'])
+def directories(rel_directory=base_dir):
     """
        Render the home page or directory listing page.
 
@@ -373,7 +375,7 @@ def delete_file_or_directory():
 
 
 @app.route('/retrieve_selected_path/', methods=['POST'])
-def retrieve_selected_file_path():
+def retrieve_selected_path():
     """
         Render the page with retrieved selected file paths.
 
@@ -382,7 +384,7 @@ def retrieve_selected_file_path():
         """
     selected_file = request.form.get('selected_file')
     if os.path.isdir(selected_file):
-        return redirect(url_for('query_db', folder=selected_file))
+        return render_template('query_db.html', folder=selected_file)
 
     elif os.path.isfile(selected_file):
         return render_template('split_enc.html', selected_file=selected_file)
@@ -408,11 +410,11 @@ def progress_status(task_id):
     return jsonify({'progress': progress.get(task_id, 0)})
 
 
-@app.route('/query_db/', methods=['GET', 'POST'])
+@app.route('/query_db/', methods=['POST'])
 def query_db():
     folder = request.form['folder']
     if not folder:
-        return redirect(url_for('index'))
+        return redirect(request.url)
 
     folder = unquote(folder)
     return render_template('query_db.html', folder=folder)
@@ -454,11 +456,6 @@ def results():
 
     return render_template('results.html', active=len(active_found), inactive=len(inactive), unknown=len(unknown),
                            folder=folder)
-
-
-@app.route('/select_folder/')
-def select_folder():
-    return 'Hello World! Select Folder'
 
 
 @app.route('/view_users/<category>/', methods=['GET', 'POST'])

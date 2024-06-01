@@ -4,25 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
-    {% if title %}
-        Notification Mail - {{title}}
-    {% else %}
-        Notification Mail
-    {% endif %}
+        {% if title %}
+            Notification Mail - {{ title }}
+        {% else %}
+            Notification Mail
+        {% endif %}
     </title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base2.css') }}">
 </head>
 <body>
+<div class="container">
     <header>
-        <h1>Notification Mail</h1>
+        <h1>Notification Script</h1>
     </header>
-    <main>
-    <div class="container">
-        {% block body %}{% endblock %}
-    </div>
-    </main>
+    {% block body %}
+
+
+
+    {% endblock %}
     <footer>
         <p>&copy; 2024 NASRDA ICT. </p>
     </footer>
+</div>
 </body>
 </html>

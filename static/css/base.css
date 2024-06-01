@@ -8,11 +8,10 @@ body {
     background-color: #f3f4f6;
     margin: 0;
     color: #333;
-    line-height: 1.6;
 }
 
 .container {
-    max-width: 70%;
+    max-width: 80%;
     margin: 0 auto;
     background-color: #fff;
     padding: 30px 20px;
@@ -23,7 +22,7 @@ body {
 .fixed-button {
     position: fixed;
     top: 0;
-    left: 50%;
+    right: 0;
     background-color: #f1f1f1;
     padding: 10px;
     text-align: center;
@@ -46,16 +45,8 @@ header h1 {
 
 .header {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-}
-
-.header-div {
-    display: inherit;
     flex-direction: row;
     justify-content: space-between;
-    width: 100%;
 }
 
 .search-form {
@@ -79,7 +70,7 @@ form label {
 }
 
 form input[type="text"] {
-    width: 100%;
+    /*width: 100%;*/
     padding: 10px;
     margin-bottom: 10px;
     border: 1px solid #ccc;
@@ -95,30 +86,12 @@ form input[type="text"] {
 }
 
 
-form input[type="file"],
-form button {
-    width: 100%;
+form input[type="file"] {
     padding: 15px;
     margin-bottom: 20px;
     border-radius: 8px;
     border: 1px solid #ccc;
-    box-sizing: border-box;
     font-size: 16px;
-}
-
-form button {
-    background: linear-gradient(135deg, #4caf50, #2e8b57); /* Gradient color */
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-size: 18px;
-    transition: background 0.3s, transform 0.2s;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-form button:hover {
-    background: linear-gradient(135deg, #45a049, #267147); /* Darker gradient */
-    transform: translateY(-2px);
 }
 
 /* Styles for the view file page */
@@ -201,20 +174,29 @@ a:hover {
 }
 
 p {
-    font-size: 18px;
+    font-size: 15px;
     margin-bottom: 10px;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+li {
+    margin-bottom: 5px;
 }
 
 button {
     background: linear-gradient(135deg, #4caf50, #2e8b57); /* Gradient color */
     color: white;
     border: none;
-    padding: 15px 30px;
-    border-radius: 8px;
+    padding: 10px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 18px;
     transition: background 0.3s, transform 0.2s;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-size: 18px;
 }
 
 button:hover {
@@ -259,13 +241,15 @@ footer {
     background-color: #4CAF50;
     color: white;
     text-align: center;
-    padding: 3px 0;
+    padding: 10px 0;
     width: 100%;
     font-size: 16px;
-    position: fixed;
+    position: relative;
     bottom: 0;
     margin-top: 30px;
+    border-bottom: 3px solid #388E3C; /* Darker green */
 }
+
 
 /* Responsive Styles */
 @media (max-width: 768px) {

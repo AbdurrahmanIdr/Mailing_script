@@ -2,30 +2,26 @@
 {% block body %}
 
     <div class="header">
-        <h1>Notification Script</h1>
-        <div class="header-div">
-            <!-- Search Box -->
-            <form action="{{ url_for('search') }}" method="post" class="search-form">
-                <label for="search"></label><input type="text" id="search" name="query"
-                                                   placeholder="Enter file or folder name">
-                <button type="submit">Search</button>
-                <input type="hidden" name="dir" value="{{ current_directory }}">
-            </form>
+        <!-- Search Box -->
+        <form action="{{ url_for('search') }}" method="post" class="search-form">
+            <label for="search"></label><input type="text" id="search" name="query"
+                                               placeholder="Enter file or folder name">
+            <button type="submit">Search</button>
+            <input type="hidden" name="dir" value="{{ current_directory }}">
+        </form>
 
-            <!-- Upload Form -->
-            <form id="file-upload-form" action="{{ url_for('upload') }}"
-                  method="post"
-                  enctype="multipart/form-data">
-                <label for="file">Choose a file:</label>
-                <input type="file" name="file" id="file" required>
-                <button type="submit">Upload</button>
-            </form>
+        <!-- Upload Form -->
+        <form id="file-upload-form" action="{{ url_for('upload') }}"
+              method="post"
+              enctype="multipart/form-data">
+            <label for="file">Choose a file:</label>
+            <input type="file" name="file" id="file" required>
+            <button type="submit">Upload</button>
+        </form>
 
-            <form action="{{ url_for('logout') }}" method="POST" class="logout-form">
-                <button type="submit">Logout</button>
-            </form>
-
-        </div>
+        {#            <form action="{{ url_for('logout') }}" method="POST" class="logout-form">#}
+        {#                <button type="submit">Logout</button>#}
+        {#            </form>#}
 
     </div>
 
@@ -34,7 +30,6 @@
 
         <form id="file-selection-form" action="{{ url_for('retrieve_selected_path') }}" method="post">
             <table>
-                <thead>
                 <tr>
                     <th>Select</th>
                     <th>Name</th>
@@ -43,8 +38,6 @@
                     <th>Last Modified</th>
                     <th>Action</th>
                 </tr>
-                </thead>
-                <tbody>
                 {% for file in files %}
                     <tr>
                         <td>
@@ -80,7 +73,6 @@
                         </td>
                     </tr>
                 {% endfor %}
-                </tbody>
             </table>
             <div class="fixed-button">
                 <button type="submit">Select Path</button>

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block body %}
-    <form action="{{ url_for('results') }}" method="post">
+    <form action="{{ url_for('results') }}" method="post" class="form_btn">
         <input type="hidden" name="folder" value="{{ folder }}">
         <button type="submit">Query Database</button>
     </form>
