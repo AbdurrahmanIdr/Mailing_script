@@ -1,26 +1,25 @@
 import os
 import shutil as sh
 import time
-
-from datetime import datetime
 from pathlib import Path
+from secrets import token_urlsafe
 from threading import Thread
 from urllib.parse import quote, unquote
-from PyPDF2 import PdfReader, PdfWriter
 
 from flask import Flask, render_template, url_for, request, redirect, jsonify, session, flash
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
+from models.explorer import get_sorted_files, get_file_info, search_files, format_file_size, datetimeformat
+from models.pdf_rel import splitter, base_dir, progress
+
 app = Flask(__name__)
-app.secret_key = os.urandom(32)
-base_dir = os.path.abspath('data')
+app.secret_key = token_urlsafe(32)
 db_path = os.path.join(base_dir, 'db.sqlite')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-progress = {}
 
 
 class User(db.Model):
@@ -52,179 +51,13 @@ class UnknownUser(db.Model):
 
 # db.create_all()
 
-
-def detail_extract(file_page):
-    contents = file_page.extract_text().split('\n')
-    content = contents[3:6]
-
-    dates = content[0].strip().split('-')
-    d_mon = dates[0]
-    d_year = dates[-1]
-    sur_name = content[1].split(':')[1].split(',')[0].strip()
-    if ':' in content[-1]:
-        ippis = content[-1].split(':')[-1].strip()
-    else:
-        ippis = content[6].split(':')[-1].strip()
-    new_name = [ippis, sur_name, d_mon, d_year]
-    return new_name
-
-
-# Splitter function to process PDF
-def splitter(filename, task_id):
-    if str(filename).endswith('.pdf'):
-        file_folder = filename.split('.')[0]
-        folder_path = os.path.join(base_dir, file_folder)
-
-        if os.path.exists(folder_path):
-            sh.rmtree(folder_path)
-
-        os.makedirs(folder_path)
-
-        file_path = str(os.path.join(base_dir, filename))
-        pdf_reader = PdfReader(file_path)
-        pages = len(pdf_reader.pages)
-
-        start = time.time()
-
-        for i in range(pages):
-            pdf_writer = PdfWriter()
-            pdf_writer.add_page(pdf_reader.pages[i])
-            name = detail_extract(pdf_reader.pages[i])
-
-            if name[0] == '482427':
-                name[0] = str(int(name[0]) + i)
-
-            pswd = f'{name[0][-2:]}{name[1][-2:]}'
-            pdf_writer.encrypt(pswd)
-
-            name = f'{name[0]}_{name[1]}_{name[2]}_{name[3]}.pdf'
-
-            file_name = str(os.path.join(base_dir, filename.split('.')[0], name))
-            with open(file_name, 'wb') as f:
-                pdf_writer.write(f)
-
-            # Update progress
-            progress[task_id] = (i + 1) / pages * 100
-            time.sleep(0.1)  # Simulate time taken for processing each page
-
-        progress[task_id] = 100  # Ensure progress is marked complete
-        stop = time.time()
-        total_time = stop - start
-        print(f'Total time: {total_time}')
-        return True
-    return False
-
-
-def get_sorted_files(directory):
-    """
-       Get a sorted list of directories and files in the given directory.
-
-       Args:
-           directory (str): The directory path.
-
-       Returns:
-           tuple: Sorted list of directories and files.
-       """
-
-    directory = Path(directory)
-
-    try:
-        items = list(directory.iterdir())
-    except (PermissionError, FileNotFoundError) as e:
-        app.logger.warning(f"Error accessing directory: {e}")
-        directory = directory.parent
-        items = list(directory.iterdir())
-
-    dirs = []  # List to store unique directory names
-    files = []  # List to store file names
-
-    # Set to store directory names to avoid repetition
-    seen_dirs = set()
-    seen_files = set()
-
-    for item in items:
-        if item.is_dir() or item.is_file():  # Check if the item is either a directory or a file
-            real_path = item.resolve()  # Resolve symbolic links to get the real path
-            name = real_path.name  # Get the name of the item
-
-            # Exclude files and folders that start with a dot
-            if not name.startswith('.'):
-                if real_path != directory:  # Exclude the current directory from the list
-                    if real_path.is_dir():  # Check if the item is a directory
-                        if name not in seen_dirs:  # Check if the directory name is not repeated
-                            dirs.append(name)  # Append the directory name to the list of directories
-                            seen_dirs.add(name)  # Add the directory name to the set of seen directories
-                    elif real_path.is_file():  # Check if the item is a file
-                        if name not in seen_files:  # Check if the directory name is not repeated
-                            files.append(name)  # Append the file name to the list of files
-                            seen_files.add(name)  # Add the file name to the set of seen files
-
-    return sorted(list(seen_dirs)) + sorted(list(seen_files)), directory
-
-
-@app.template_filter('format_file_size')
-def format_file_size(size_in_bytes):
-    """
-       Format the file size in bytes to a human-readable string.
-
-       Args:
-           size_in_bytes (float): File size in bytes.
-
-       Returns:
-           str: Formatted file size with units.
-       """
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size_in_bytes < 1024.0:
-            break
-        size_in_bytes /= 1024.0
-    return f"{size_in_bytes:.2f} {unit}"
-
-
-@app.template_filter('datetimeformat')
-def datetimeformat(value):
-    """
-       Format the given timestamp to a string using the specified format.
-
-       Args:
-           value (float): Timestamp.
-
-       Returns:
-           str: Formatted datetime string.
-       """
-    format_time: str = '%Y-%m-%d %H:%M:%S'
-    return datetime.fromtimestamp(value).strftime(format_time)
-
-
-def get_file_info(file_path):
-    """
-        Get information about a file.
-
-        Args:
-            file_path (Path): Path to the file.
-
-        Returns:
-            dict: File information dictionary.
-        """
-    stat_info = os.stat(file_path)
-
-    file_info = {
-        "File Path": str(file_path),
-        "File Size": format_file_size(stat_info.st_size),
-        "Last Modified": stat_info.st_mtime,
-        "Is Directory": os.path.isdir(file_path),
-        "Is File": os.path.isfile(file_path),
-        "File Extension": str(file_path).split('.')[-1],
-        "File Permissions": oct(stat_info.st_mode)[-3:],
-        "Path Components": file_path.parts,
-    }
-
-    return file_info
+app.jinja_env.filters['format_file_size'] = format_file_size
+app.jinja_env.filters['datetimeformat'] = datetimeformat
 
 
 # @app.route('/login/')
 # def login():
 #     return render_template('login.html')
-
 
 @app.route("/upload/", methods=['POST'])
 def upload():
@@ -259,47 +92,10 @@ def directories(rel_directory=base_dir):
        Returns:
            render_template: Rendered HTML template.
        """
+    print(os.path.isdir(rel_directory), rel_directory)
     if os.path.isdir(rel_directory):
         files, current_directory = get_sorted_files(rel_directory)
         return render_template('directories.html', files=files, current_directory=current_directory)
-
-
-def search_files(directory, query, depth=3):
-    """
-        Search for files in the specified directory matching the given query.
-
-        Args:
-            directory (Path): Directory to search.
-            query (str): Search query.
-            depth (int): Depth of recursive search.
-
-        Returns:
-            list: List of search results.
-        """
-    search_results = []
-
-    def recursive_search(path, current_depth):
-        if current_depth > depth:
-            return
-
-        for item in path.iterdir():
-            try:
-                if query.lower() in item.name.lower():
-                    search_results.append({
-                        'name': item.name,
-                        'path': str(item.resolve()),
-                        'is_file': item.is_file(),
-                        'size': format_file_size(item.stat().st_size) if item.is_file() else None,
-                        'last_modified': datetime.fromtimestamp(item.stat().st_mtime).strftime(
-                            '%Y-%m-%d %H:%M:%S') if item.is_file() else None,
-                    })
-                if item.is_dir():
-                    recursive_search(item, current_depth + 1)  # Recursively search in subdirectories
-            except PermissionError:
-                continue
-
-    recursive_search(directory, 0)
-    return search_results
 
 
 @app.route('/search/', methods=['POST'])
@@ -507,3 +303,4 @@ def send_mail():
 
 if __name__ == '__main__':
     app.run()
+
