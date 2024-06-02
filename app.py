@@ -92,7 +92,6 @@ def directories(rel_directory=base_dir):
        Returns:
            render_template: Rendered HTML template.
        """
-    print(os.path.isdir(rel_directory), rel_directory)
     if os.path.isdir(rel_directory):
         files, current_directory = get_sorted_files(rel_directory)
         return render_template('directories.html', files=files, current_directory=current_directory)
@@ -303,4 +302,3 @@ def send_mail():
 
 if __name__ == '__main__':
     app.run()
-
