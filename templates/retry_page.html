@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block body %}
+    <h1>Email Sending Process Completed</h1>
+    <p>All emails have been processed for folder: {{ folder }}</p>
+    <h2>What do you want to do next?</h2>
+    <form action="/send_mail/" method="post">
+        <input type="hidden" name="folder" value="{{ folder }}">
+        <button type="submit">Retry Sending Emails</button>
+    </form>
+{% endblock %}

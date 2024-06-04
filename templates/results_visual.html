@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block body %}
+
+{#    <title>Email Sending Progress</title>#}
+
+    <h1>Email Sending Progress for Folder: {{ folder }}</h1>
+    <canvas id="progressChart" width="400" height="400"></canvas>
+    <p id="status">Starting...</p>
+    <div id="log">
+        <h2>Log</h2>
+        <ul id="log-list"></ul>
+    </div>
+
+    <script>
+        // Initialize the chart
+        const ctx = document.getElementById('progressChart').getContext('2d');
+        const progressChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Sent', 'Failed', 'Pending'],
+                datasets: [{
+                    data: [0, 0, 100],
+                    backgroundColor: ['#4caf50', '#f44336', '#f3f3f3']
+                }]
+            },
+            options: {
+                circumference: Math.PI,
+                rotation: Math.PI,
+                cutout: '50%',
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        function updateProgress() {
+            fetch('/progress_mail/')
+                .then(response => response.json())
+                .then(data => {
+                    const total = data.total;
+                    const sent = data.sent;
+                    const failed = data.failed;
+                    const pending = total - sent - failed;
+
+                    // Update chart data
+                    progressChart.data.datasets[0].data = [sent, failed, pending];
+                    progressChart.update();
+
+                    const status = document.getElementById('status');
+                    const logList = document.getElementById('log-list');
+
+                    if (sent + failed < total) {
+                        status.textContent = `Sent: ${sent}, Failed: ${failed}, Total: ${total}`;
+                    } else {
+                        status.textContent = `Completed! Sent: ${sent}, Failed: ${failed}, Total: ${total}`;
+                        // Redirect to retry page after completion using POST request
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '/retry_page/';
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'folder';
+                        input.value = '{{ folder }}';
+                        form.appendChild(input);
+                        document.body.appendChild(form);
+                        form.submit();
+                    }
+
+                    logList.innerHTML = '';
+                    data.logs.forEach(log => {
+                        const li = document.createElement('li');
+                        li.textContent = log;
+                        logList.appendChild(li);
+                    });
+                });
+        }
+
+        setInterval(updateProgress, 1000);
+    </script>
+{% endblock %}

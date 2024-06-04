@@ -1,6 +1,7 @@
 import os
 import shutil as sh
 import time
+import traceback
 from pathlib import Path
 from secrets import token_urlsafe
 from threading import Thread
@@ -12,6 +13,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 from models.explorer import get_sorted_files, get_file_info, search_files, format_file_size, datetimeformat
 from models.pdf_rel import splitter, base_dir, progress
+from models.mail_mod import send_email_with_attachment, progress_data
 
 app = Flask(__name__)
 app.secret_key = token_urlsafe(32)
@@ -20,6 +22,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+progress = progress
 
 
 class User(db.Model):
@@ -152,7 +155,7 @@ def delete_file_or_directory():
         path = request.form.get('path')
         current_directory = request.form.get('current_directory')  # Retrieve current directory from form data
         current_directory = Path(current_directory)
-        # current_directory = request.referrer
+
         try:
             if os.path.exists(path):
                 if os.path.isfile(path):
@@ -297,7 +300,62 @@ def add_user():
 
 @app.route('/send_mail/', methods=['GET', 'POST'])
 def send_mail():
-    return 'Hello World! send_mail'
+    try:
+        folder = request.form.get('folder')
+        success = os.path.join(folder, 'success_mail')
+        failed = os.path.join(folder, 'failed_mail')
+
+        if not os.path.exists(success):
+            os.makedirs(success)
+
+        if not os.path.exists(failed):
+            os.makedirs(failed)
+
+        active = [user.ippis for user in ActiveUser.query.all()]
+        files_list = [file for file in os.listdir(folder) if file.endswith('.pdf')]
+
+        files = [file for file in files_list if file.split('_')[0] in active]
+
+        progress_data['total'] = len(files)
+
+        for file in files:
+            ippis = file.split('_')[0]
+            user = User.query.filter_by(ippis=ippis).first()
+            email = str(user.email)
+            matched_path = str(os.path.join(folder, file))
+            print(f"Attempting to send email to {email} for file {file}")
+            print(f"Matched path: {matched_path}")
+            mail_att = send_email_with_attachment(email, ippis, file, matched_path)
+            full_path = os.path.join(folder, file)
+
+            if mail_att:
+                sh.move(full_path, success)
+                progress_data['sent'] += 1
+                progress_data['logs'].append(f"Successfully sent email to {email} for file {file}")
+                print(f"Email sent successfully to {email} for file {file}")
+            else:
+                sh.move(full_path, failed)
+                progress_data['failed'] += 1
+                progress_data['logs'].append(f"Failed to send email to {email} for file {file}")
+                print(f"Failed to send email to {email} for file {file}")
+
+        progress_data['completed'] = True
+        return render_template('results_visual.html', folder=folder)
+    except Exception:
+        print("An error occurred during send_mail():")
+        print(traceback.format_exc())  # Print detailed traceback
+        return "An error occurred. Please check logs for details.", 500
+
+
+@app.route('/progress_mail/')
+def progress_mail():
+    return jsonify(progress_data)
+
+
+@app.route('/retry_page/', methods=['POST'])
+def retry_page():
+    folder = request.form.get('folder')
+    return render_template('retry_page.html', folder=folder)
 
 
 if __name__ == '__main__':

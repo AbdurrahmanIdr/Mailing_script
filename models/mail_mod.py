@@ -7,9 +7,18 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+# In-memory storage for progress and logs
+progress_data = {
+    'total': 0,
+    'sent': 0,
+    'failed': 0,
+    'logs': [],
+    'completed': False
+}
+
 
 # Function to read configuration from config file
-def read_config(filename='config.ini'):
+def read_config(filename='config2.ini'):
     configure = configparser.ConfigParser()
     configure.read(filename)
     return configure
@@ -22,6 +31,10 @@ smtp_server = config['Email']['smtp_server']
 smtp_port = config['Email'].getint('smtp_port')
 sender_email = config['Email']['sender_email']
 sender_password = config['Email']['sender_password']
+
+print(f"SMTP Server: {smtp_server}")
+print(f"SMTP Port: {smtp_port}")
+
 
 # Maximum retry attempts for email sending
 MAX_RETRY_ATTEMPTS = 3
@@ -38,7 +51,7 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
         recipient_email (str): User's email address
         user_id (str): User ID
         filename (str): Matched filename containing the user ID
-        matched_file_path (str): Full path to the matched file (optional)
+        matched_file_path (str): Full path to the matched file
     """
     attempts = 0
     while attempts < MAX_RETRY_ATTEMPTS:
@@ -82,7 +95,7 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
                 # Send the email
                 server.sendmail(sender_email, recipient_email, message.as_string())
                 print(f"Email notification sent to {recipient_email} for user ID {user_id}.")
-                return  # Success, exit retry loop
+                return True  # Success, exit retry loop
 
         except (smtplib.SMTPException, FileNotFoundError) as e:
             print(f"Error sending email notification: {e}")
@@ -92,5 +105,6 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
                 time.sleep(RETRY_INTERVAL)  # Wait before retrying
             else:
                 print(f"Maximum retries ({MAX_RETRY_ATTEMPTS}) reached. Email sending failed.")
+                return False
 
     # End of retry loop

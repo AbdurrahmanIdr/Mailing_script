@@ -5,7 +5,7 @@ import time
 from PyPDF2 import PdfReader, PdfWriter
 
 base_dir = os.path.abspath('data')
-progress = {}
+progress = dict()
 
 
 def detail_extract(file_page):
