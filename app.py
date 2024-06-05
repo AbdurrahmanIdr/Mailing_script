@@ -15,8 +15,8 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
 from models.explorer import get_sorted_files, get_file_info, search_files, format_file_size, datetimeformat
-from models.pdf_rel import splitter, base_dir, progress
 from models.mail_mod import send_email_with_attachment, progress_data
+from models.pdf_rel import splitter, base_dir, progress
 
 app = Flask(__name__)
 app.secret_key = token_urlsafe(32)
@@ -26,7 +26,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 progress = progress
-progress_data = progress_data
 
 
 class User(db.Model):
@@ -302,109 +301,114 @@ def add_user():
     return render_template('add_user.html')
 
 
-@app.route('/send_mail/', methods=['GET', 'POST'])
+@app.route('/send_mail/', methods=['POST'])
 def send_mail():
     folder = request.form.get('folder')
-    success = os.path.join(folder, 'success_mail')
-    failed = os.path.join(folder, 'failed_mail')
+    task_id = str(time.time())  # Generate a unique task ID
+    progress_data[task_id] = {'total': 0, 'sent': 0, 'failed': 0, 'logs': [], 'errors': [], 'completed': False}
+    folder_encoded = quote(folder)
 
-    if not os.path.exists(success):
-        os.makedirs(success)
+    # Run the email sending function in the background
+    thread = Thread(target=send_emails, args=(folder, task_id))
+    thread.start()
 
-    if not os.path.exists(failed):
-        os.makedirs(failed)
+    return render_template('results_visual.html', task_id=task_id, folder=folder_encoded)
 
-    active = [user.ippis for user in ActiveUser.query.all()]
-    files_list = [file for file in os.listdir(folder) if file.endswith('.pdf')]
 
-    files = [file for file in files_list if file.split('_')[0] in active]
+def send_emails(folder, task_id):
+    with app.app_context():
+        success = os.path.join(folder, 'success_mail')
+        failed = os.path.join(folder, 'failed_mail')
 
-    progress_data['total'] = len(files)
+        if not os.path.exists(success):
+            os.makedirs(success)
+        if not os.path.exists(failed):
+            os.makedirs(failed)
 
-    for file in files:
-        ippis = file.split('_')[0]
-        user = User.query.filter_by(ippis=ippis).first()
-        email = str(user.email)
-        matched_path = str(os.path.join(folder, file))
+        active = [user.ippis for user in ActiveUser.query.all()]
+        files_list = [file for file in os.listdir(folder) if file.endswith('.pdf')]
+        files = [file for file in files_list if file.split('_')[0] in active]
 
-        try:
-            mail_att = send_email_with_attachment(email, ippis, file, matched_path)
-            error_message = None
+        progress_data[task_id]['total'] = len(files)
 
-        except Exception as e:
-            mail_att = False
-            error_message = str(e)
+        for file in files:
+            ippis = file.split('_')[0]
+            user = User.query.filter_by(ippis=ippis).first()
+            email = user.email
+            matched_path = os.path.join(folder, file)
 
-        full_path = os.path.join(folder, file)
+            try:
+                mail_att = send_email_with_attachment(email, ippis, file, matched_path)
+                error_message = None
+            except Exception as e:
+                mail_att = False
+                error_message = str(e)
 
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            full_path = os.path.join(folder, file)
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        if mail_att:
-            sh.move(full_path, success)
-            progress_data['sent'] += 1
-            progress_data['logs'].append({
+            log_entry = {
                 'timestamp': timestamp,
-                'message': f"Successfully sent email to {email} for file {file}",
+                'message': f"Successfully sent email to {email} for file {file}"
+                if mail_att else f"Failed to send email to {email} for file {file}",
                 'file': file,
                 'email': email,
-            })
+            }
+            progress_data[task_id]['logs'].append(log_entry)
 
-        else:
-            sh.move(full_path, failed)
-            progress_data['failed'] += 1
-            progress_data['logs'].append(f"[{timestamp}] Failed to send email to {email} for file {file}")
-            progress_data['logs'].append({
-                'timestamp': timestamp,
-                'message': f"Failed to send email to {email} for file {file}",
-                'file': file,
-                'email': email,
-            })
-            progress_data['errors'].append({
-                'file': file,
-                'email': email,
-                'error': error_message,
-                'timestamp': timestamp,
-            })
+            if mail_att:
+                sh.move(full_path, success)
+                progress_data[task_id]['sent'] += 1
+            else:
+                sh.move(full_path, failed)
+                progress_data[task_id]['failed'] += 1
+                progress_data[task_id]['errors'].append({
+                    'file': file,
+                    'email': email,
+                    'error': error_message,
+                    'timestamp': timestamp,
+                })
 
-    progress_data['completed'] = True
-    folder = quote(folder)
-    return render_template('results_visual.html', folder=folder)
+        progress_data[task_id]['completed'] = True
 
 
-@app.route('/progress_mail/')
-def progress_mail():
-    return jsonify(progress_data)
+@app.route('/progress_mail/<task_id>/')
+def progress_mail(task_id):
+    return jsonify(progress_data.get(task_id, {'total': 0, 'sent': 0, 'failed': 0, 'logs': [], 'errors': []}))
 
 
 @app.route('/retry_page/', methods=['POST'])
 def retry_page():
     folder = request.form.get('folder')
-    return render_template('retry_page.html', folder=folder)
+    task_id = request.form.get('task_id')
+    return render_template('retry_page.html', task_id=task_id, folder=folder)
 
 
 @app.route('/retry_logs/', methods=['GET'])
 def retry_logs():
+    task_id = request.args.get('task_id')
     page = int(request.args.get('page', 1))
     per_page = 10
     start = (page - 1) * per_page
     end = start + per_page
-    logs_paginated = progress_data['logs'][start:end]
-    return jsonify(logs=logs_paginated, total=len(progress_data['logs']))
+    logs_paginated = progress_data[task_id]['logs'][start:end]
+    return jsonify(logs=logs_paginated, total=len(progress_data[task_id]['logs']))
 
 
 @app.route('/retry_errors/', methods=['GET'])
 def retry_errors():
+    task_id = request.args.get('task_id')
     page = int(request.args.get('page', 1))
     per_page = 10
     start = (page - 1) * per_page
     end = start + per_page
-    errors_paginated = progress_data['errors'][start:end]
-    return jsonify(errors=errors_paginated, total=len(progress_data['errors']))
+    errors_paginated = progress_data[task_id]['errors'][start:end]
+    return jsonify(errors=errors_paginated, total=len(progress_data[task_id]['errors']))
 
 
 @app.route('/retry_mail/', methods=['POST'])
 def retry_mail():
-    folder = request.form.get('folder')
+    folder = unquote(request.form.get('folder'))
     file = request.form.get('file')
     full_path = os.path.join(folder, 'failed_mail', file)
 
@@ -419,29 +423,31 @@ def retry_mail():
         error_message = str(e)
 
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    if mail_att:
-        sh.move(full_path, os.path.join(folder, 'success_mail'))
-        message = f"[{timestamp}] Successfully resent email to {email} for file {file}"
-    else:
-        message = f"[{timestamp}] Failed to resend email to {email} for file {file}. Error: {error_message}"
+    log_entry = {
+        'timestamp': timestamp,
+        'message': f"[{timestamp}] Successfully resent email to {email} for file {file}"
+        if mail_att else f"[{timestamp}] Failed to resend email to {email} for file {file}. Error: {error_message}",
+        'file': file,
+        'email': email,
+    }
+    progress_data['logs'].append(log_entry)
+    if not mail_att:
         progress_data['errors'].append({
             'file': file,
             'email': email,
             'error': error_message,
             'timestamp': timestamp,
         })
+    else:
+        sh.move(full_path, os.path.join(folder, 'success_mail'))
 
-    progress_data['logs'].append({
-        'timestamp': timestamp,
-        'message': message,
-        'file': file,
-        'email': email,
-    })
     return redirect(url_for('retry_page'))
 
 
-@app.route('/export_logs/')
+@app.route('/export_logs/', methods=['POST', 'GET'])
 def export_logs():
+    task_id = request.form.get('task_id')
+
     def generate_csv(data, columns):
         output = StringIO()
         writer = csv.DictWriter(output, fieldnames=columns)
@@ -451,12 +457,12 @@ def export_logs():
 
     logs_csv = generate_csv(
         [{'timestamp': log['timestamp'], 'message': log['message'], 'file': log['file'], 'email': log['email']}
-         for log in progress_data['logs']],
+         for log in progress_data[task_id]['logs']],
         ['timestamp', 'message', 'file', 'email']
     )
     errors_csv = generate_csv(
         [{'timestamp': error['timestamp'], 'file': error['file'], 'email': error['email'], 'error': error['error']}
-         for error in progress_data['errors']],
+         for error in progress_data[task_id]['errors']],
         ['timestamp', 'file', 'email', 'error']
     )
 
@@ -466,11 +472,13 @@ def export_logs():
         zip_file.writestr('errors.csv', errors_csv)
     zip_buffer.seek(0)
 
+    timedate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
     return send_file(
         zip_buffer,
         mimetype='application/zip',
         as_attachment=True,
-        download_name='logs_and_errors.zip'
+        download_name=f'logs_and_errors_{timedate}.zip'
     )
 
 

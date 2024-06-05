@@ -16,6 +16,8 @@
         <button onclick="nextPage('logs')">Next Logs</button>
         <button onclick="prevPage('errors')">Previous Errors</button>
         <button onclick="nextPage('errors')">Next Errors</button>
+        <p id="logs-page-info"></p>
+        <p id="errors-page-info"></p>
     </div>
     <h2>What do you want to do next?</h2>
     <form action="/send_mail/" method="post">
@@ -23,7 +25,8 @@
         <button type="submit">Retry Sending All Emails</button>
     </form>
     <div id="actions">
-        <form action="/export_logs/" method="get">
+        <form action="/export_logs" method="post">
+            <input type="hidden" name="task_id" value="{{ task_id }}">
             <button type="submit">Export Logs and Errors</button>
         </form>
     </div>
@@ -31,9 +34,10 @@
     <script>
         let logsPage = 1;
         let errorsPage = 1;
+        const task_id = "{{ task_id }}";
 
-         function loadLogs(page) {
-            fetch(`/retry_logs?page=${page}`)
+        function loadLogs(page) {
+            fetch(`/retry_logs/?task_id=${task_id}&page=${page}`)
                 .then(response => response.json())
                 .then(data => {
                     const logsList = document.getElementById('failed-emails-list');
@@ -44,16 +48,16 @@
                             <strong>Timestamp:</strong> ${log.timestamp}<br>
                             <strong>Email:</strong> ${log.email}<br>
                             <strong>File:</strong> ${log.file}<br>
-                            <strong>Message:</strong> ${log.message}
+                            <strong>Message:</strong> ${log.message}<br><br>
                         `;
                         logsList.appendChild(li);
                     });
-                    document.getElementById('logs-page-info').textContent = `Page ${data.current_page} of ${data.total_pages}`;
+                    document.getElementById('logs-page-info').textContent = `Page ${page} of ${data.total_pages}`;
                 });
         }
 
         function loadErrors(page) {
-            fetch(`/retry_errors?page=${page}`)
+            fetch(`/retry_errors/?task_id=${task_id}&page=${page}`)
                 .then(response => response.json())
                 .then(data => {
                     const errorsList = document.getElementById('error-details-list');
@@ -62,13 +66,13 @@
                         const li = document.createElement('li');
                         li.innerHTML = `
                             <strong>Timestamp:</strong> ${error.timestamp}<br>
-                            <strong>Email:</strong> ${log.email}<br>
+                            <strong>Email:</strong> ${error.email}<br>
                             <strong>File:</strong> ${error.file}<br>
-                            <strong>Error:</strong> ${error.error}
+                            <strong>Error:</strong> ${error.error}<br><br>
                         `;
                         errorsList.appendChild(li);
                     });
-                    document.getElementById('errors-page-info').textContent = `Page ${data.current_page} of ${data.total_pages}`;
+                    document.getElementById('errors-page-info').textContent = `Page ${page} of ${data.total_pages}`;
                 });
         }
 

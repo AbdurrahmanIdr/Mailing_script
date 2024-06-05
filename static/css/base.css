@@ -236,6 +236,16 @@ h2 {
             overflow-y: auto;
         }
 
+#notifications {
+            margin-top: 20px;
+        }
+        .notification.error {
+            color: red;
+        }
+        .notification.success {
+            color: green;
+        }
+
 /* Footer Styles */
 footer {
     background-color: #4CAF50;

@@ -1,22 +1,22 @@
 {% extends 'base.html' %}
 {% block body %}
-
-{#    <title>Email Sending Progress</title>#}
-
     <h1>Email Sending Progress for Folder: {{ folder }}</h1>
-    <canvas id="progressChart" width="400" height="400"></canvas>
+    <canvas id="progressChart" width="25" height="25"></canvas>
     <p id="status">Starting...</p>
     <div id="log">
         <h2>Log</h2>
         <ul id="log-list"></ul>
     </div>
     <div id="actions">
-        <form action="/export_logs/" method="get">
+        <form action="/export_logs/" method="post">
+            <input type="hidden" name="task_id" value="{{ task_id }}">
             <button type="submit">Export Logs and Errors</button>
         </form>
     </div>
 
     <script>
+        const task_id = "{{ task_id }}";
+
         // Initialize the chart
         const ctx = document.getElementById('progressChart').getContext('2d');
         const progressChart = new Chart(ctx, {
@@ -42,7 +42,7 @@
         });
 
         function updateProgress() {
-            fetch('/progress_mail/')
+            fetch('/progress_mail/' + task_id)
                 .then(response => response.json())
                 .then(data => {
                     const total = data.total;
@@ -50,7 +50,6 @@
                     const failed = data.failed;
                     const pending = total - sent - failed;
 
-                    // Update chart data
                     progressChart.data.datasets[0].data = [sent, failed, pending];
                     progressChart.update();
 
@@ -61,15 +60,19 @@
                         status.textContent = `Sent: ${sent}, Failed: ${failed}, Total: ${total}`;
                     } else {
                         status.textContent = `Completed! Sent: ${sent}, Failed: ${failed}, Total: ${total}`;
-                        // Redirect to retry page after completion using POST request
                         const form = document.createElement('form');
                         form.method = 'POST';
                         form.action = '/retry_page/';
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = 'folder';
-                        input.value = '{{ folder }}';
-                        form.appendChild(input);
+                        const folder_in = document.createElement('input');
+                        folder_in.type = 'hidden';
+                        folder_in.name = 'folder';
+                        folder_in.value = '{{ folder }}';
+                        const task_id_in = document.createElement('input');
+                        task_id_in.type = 'hidden';
+                        task_id_in.name = 'task_id';
+                        task_id_in.value = '{{ task_id }}';
+                        form.appendChild(folder_in);
+                        form.appendChild(task_id_in)
                         document.body.appendChild(form);
                         form.submit();
                     }
@@ -77,7 +80,7 @@
                     logList.innerHTML = '';
                     data.logs.forEach(log => {
                         const li = document.createElement('li');
-                        li.textContent = log;
+                        li.textContent = log.message;
                         logList.appendChild(li);
                     });
                 });

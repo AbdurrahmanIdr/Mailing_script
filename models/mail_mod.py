@@ -8,14 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 # In-memory storage for progress and logs
-progress_data = {
-    'total': 0,
-    'sent': 0,
-    'failed': 0,
-    'logs': [],
-    'completed': False,
-    'errors': []
-}
+progress_data = dict()
 
 
 # Function to read configuration from config file
@@ -33,13 +26,10 @@ smtp_port = config['Email'].getint('smtp_port')
 sender_email = config['Email']['sender_email']
 sender_password = config['Email']['sender_password']
 
-print(f"SMTP Server: {smtp_server}")
-print(f"SMTP Port: {smtp_port}")
-
 
 # Maximum retry attempts for email sending
 MAX_RETRY_ATTEMPTS = 3
-RETRY_INTERVAL = 5  # Seconds between retries
+RETRY_INTERVAL = 2  # Seconds between retries
 
 
 def send_email_with_attachment(recipient_email, user_id, filename, matched_file_path):
