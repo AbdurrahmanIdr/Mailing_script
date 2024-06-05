@@ -10,6 +10,11 @@
         <h2>Log</h2>
         <ul id="log-list"></ul>
     </div>
+    <div id="actions">
+        <form action="/export_logs/" method="get">
+            <button type="submit">Export Logs and Errors</button>
+        </form>
+    </div>
 
     <script>
         // Initialize the chart
@@ -80,4 +85,5 @@
 
         setInterval(updateProgress, 1000);
     </script>
+
 {% endblock %}

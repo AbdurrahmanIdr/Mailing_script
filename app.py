@@ -1,13 +1,16 @@
+import csv
+import datetime
 import os
 import shutil as sh
 import time
-import traceback
+import zipfile
+from io import BytesIO, StringIO
 from pathlib import Path
 from secrets import token_urlsafe
 from threading import Thread
 from urllib.parse import quote, unquote
 
-from flask import Flask, render_template, url_for, request, redirect, jsonify, session, flash
+from flask import Flask, render_template, url_for, request, redirect, jsonify, session, flash, send_file
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
@@ -23,6 +26,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 progress = progress
+progress_data = progress_data
 
 
 class User(db.Model):
@@ -300,51 +304,71 @@ def add_user():
 
 @app.route('/send_mail/', methods=['GET', 'POST'])
 def send_mail():
-    try:
-        folder = request.form.get('folder')
-        success = os.path.join(folder, 'success_mail')
-        failed = os.path.join(folder, 'failed_mail')
+    folder = request.form.get('folder')
+    success = os.path.join(folder, 'success_mail')
+    failed = os.path.join(folder, 'failed_mail')
 
-        if not os.path.exists(success):
-            os.makedirs(success)
+    if not os.path.exists(success):
+        os.makedirs(success)
 
-        if not os.path.exists(failed):
-            os.makedirs(failed)
+    if not os.path.exists(failed):
+        os.makedirs(failed)
 
-        active = [user.ippis for user in ActiveUser.query.all()]
-        files_list = [file for file in os.listdir(folder) if file.endswith('.pdf')]
+    active = [user.ippis for user in ActiveUser.query.all()]
+    files_list = [file for file in os.listdir(folder) if file.endswith('.pdf')]
 
-        files = [file for file in files_list if file.split('_')[0] in active]
+    files = [file for file in files_list if file.split('_')[0] in active]
 
-        progress_data['total'] = len(files)
+    progress_data['total'] = len(files)
 
-        for file in files:
-            ippis = file.split('_')[0]
-            user = User.query.filter_by(ippis=ippis).first()
-            email = str(user.email)
-            matched_path = str(os.path.join(folder, file))
-            print(f"Attempting to send email to {email} for file {file}")
-            print(f"Matched path: {matched_path}")
+    for file in files:
+        ippis = file.split('_')[0]
+        user = User.query.filter_by(ippis=ippis).first()
+        email = str(user.email)
+        matched_path = str(os.path.join(folder, file))
+
+        try:
             mail_att = send_email_with_attachment(email, ippis, file, matched_path)
-            full_path = os.path.join(folder, file)
+            error_message = None
 
-            if mail_att:
-                sh.move(full_path, success)
-                progress_data['sent'] += 1
-                progress_data['logs'].append(f"Successfully sent email to {email} for file {file}")
-                print(f"Email sent successfully to {email} for file {file}")
-            else:
-                sh.move(full_path, failed)
-                progress_data['failed'] += 1
-                progress_data['logs'].append(f"Failed to send email to {email} for file {file}")
-                print(f"Failed to send email to {email} for file {file}")
+        except Exception as e:
+            mail_att = False
+            error_message = str(e)
 
-        progress_data['completed'] = True
-        return render_template('results_visual.html', folder=folder)
-    except Exception:
-        print("An error occurred during send_mail():")
-        print(traceback.format_exc())  # Print detailed traceback
-        return "An error occurred. Please check logs for details.", 500
+        full_path = os.path.join(folder, file)
+
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        if mail_att:
+            sh.move(full_path, success)
+            progress_data['sent'] += 1
+            progress_data['logs'].append({
+                'timestamp': timestamp,
+                'message': f"Successfully sent email to {email} for file {file}",
+                'file': file,
+                'email': email,
+            })
+
+        else:
+            sh.move(full_path, failed)
+            progress_data['failed'] += 1
+            progress_data['logs'].append(f"[{timestamp}] Failed to send email to {email} for file {file}")
+            progress_data['logs'].append({
+                'timestamp': timestamp,
+                'message': f"Failed to send email to {email} for file {file}",
+                'file': file,
+                'email': email,
+            })
+            progress_data['errors'].append({
+                'file': file,
+                'email': email,
+                'error': error_message,
+                'timestamp': timestamp,
+            })
+
+    progress_data['completed'] = True
+    folder = quote(folder)
+    return render_template('results_visual.html', folder=folder)
 
 
 @app.route('/progress_mail/')
@@ -356,6 +380,98 @@ def progress_mail():
 def retry_page():
     folder = request.form.get('folder')
     return render_template('retry_page.html', folder=folder)
+
+
+@app.route('/retry_logs/', methods=['GET'])
+def retry_logs():
+    page = int(request.args.get('page', 1))
+    per_page = 10
+    start = (page - 1) * per_page
+    end = start + per_page
+    logs_paginated = progress_data['logs'][start:end]
+    return jsonify(logs=logs_paginated, total=len(progress_data['logs']))
+
+
+@app.route('/retry_errors/', methods=['GET'])
+def retry_errors():
+    page = int(request.args.get('page', 1))
+    per_page = 10
+    start = (page - 1) * per_page
+    end = start + per_page
+    errors_paginated = progress_data['errors'][start:end]
+    return jsonify(errors=errors_paginated, total=len(progress_data['errors']))
+
+
+@app.route('/retry_mail/', methods=['POST'])
+def retry_mail():
+    folder = request.form.get('folder')
+    file = request.form.get('file')
+    full_path = os.path.join(folder, 'failed_mail', file)
+
+    ippis = file.split('_')[0]
+    user = User.query.filter_by(ippis=ippis).first()
+    email = user.email
+    try:
+        mail_att = send_email_with_attachment(email, ippis, file, os.path.join(folder, 'failed_mail'))
+        error_message = None
+    except Exception as e:
+        mail_att = False
+        error_message = str(e)
+
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if mail_att:
+        sh.move(full_path, os.path.join(folder, 'success_mail'))
+        message = f"[{timestamp}] Successfully resent email to {email} for file {file}"
+    else:
+        message = f"[{timestamp}] Failed to resend email to {email} for file {file}. Error: {error_message}"
+        progress_data['errors'].append({
+            'file': file,
+            'email': email,
+            'error': error_message,
+            'timestamp': timestamp,
+        })
+
+    progress_data['logs'].append({
+        'timestamp': timestamp,
+        'message': message,
+        'file': file,
+        'email': email,
+    })
+    return redirect(url_for('retry_page'))
+
+
+@app.route('/export_logs/')
+def export_logs():
+    def generate_csv(data, columns):
+        output = StringIO()
+        writer = csv.DictWriter(output, fieldnames=columns)
+        writer.writeheader()
+        writer.writerows(data)
+        return output.getvalue()
+
+    logs_csv = generate_csv(
+        [{'timestamp': log['timestamp'], 'message': log['message'], 'file': log['file'], 'email': log['email']}
+         for log in progress_data['logs']],
+        ['timestamp', 'message', 'file', 'email']
+    )
+    errors_csv = generate_csv(
+        [{'timestamp': error['timestamp'], 'file': error['file'], 'email': error['email'], 'error': error['error']}
+         for error in progress_data['errors']],
+        ['timestamp', 'file', 'email', 'error']
+    )
+
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+        zip_file.writestr('logs.csv', logs_csv)
+        zip_file.writestr('errors.csv', errors_csv)
+    zip_buffer.seek(0)
+
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name='logs_and_errors.zip'
+    )
 
 
 if __name__ == '__main__':

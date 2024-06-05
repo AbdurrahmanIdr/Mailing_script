@@ -13,7 +13,8 @@ progress_data = {
     'sent': 0,
     'failed': 0,
     'logs': [],
-    'completed': False
+    'completed': False,
+    'errors': []
 }
 
 
