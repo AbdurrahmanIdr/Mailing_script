@@ -1,5 +1,6 @@
 import csv
 import datetime
+import math
 import os
 import shutil as sh
 import time
@@ -306,13 +307,15 @@ def send_mail():
     folder = request.form.get('folder')
     task_id = str(time.time())  # Generate a unique task ID
     progress_data[task_id] = {'total': 0, 'sent': 0, 'failed': 0, 'logs': [], 'errors': [], 'completed': False}
+    file_name = Path(folder).name
     folder_encoded = quote(folder)
 
     # Run the email sending function in the background
     thread = Thread(target=send_emails, args=(folder, task_id))
     thread.start()
 
-    return render_template('results_visual.html', task_id=task_id, folder=folder_encoded)
+    return render_template('results_visual.html', task_id=task_id,
+                           folder=folder_encoded, filename=file_name)
 
 
 def send_emails(folder, task_id):
@@ -392,7 +395,9 @@ def retry_logs():
     start = (page - 1) * per_page
     end = start + per_page
     logs_paginated = progress_data[task_id]['logs'][start:end]
-    return jsonify(logs=logs_paginated, total=len(progress_data[task_id]['logs']))
+    total = len(progress_data[task_id]['logs'])
+    out_of = math.ceil(total / per_page)
+    return jsonify(logs=logs_paginated, total=total, out_of=out_of)
 
 
 @app.route('/retry_errors/', methods=['GET'])
@@ -403,45 +408,80 @@ def retry_errors():
     start = (page - 1) * per_page
     end = start + per_page
     errors_paginated = progress_data[task_id]['errors'][start:end]
-    return jsonify(errors=errors_paginated, total=len(progress_data[task_id]['errors']))
+    total = len(progress_data[task_id]['errors'])
+    out_of = math.ceil(total / per_page)
+    return jsonify(errors=errors_paginated, total=total, out_of=out_of)
 
 
-@app.route('/retry_mail/', methods=['POST'])
-def retry_mail():
-    folder = unquote(request.form.get('folder'))
-    file = request.form.get('file')
-    full_path = os.path.join(folder, 'failed_mail', file)
+@app.route('/retry_send_mail/', methods=['POST'])
+def retry_send_mail():
+    folder = unquote(request.form['folder'])
+    task_id = str(time.time())  # Generate a unique task ID
+    failed_folder = os.path.join(folder, 'failed_mail')
+    file_name = Path(folder).name
 
-    ippis = file.split('_')[0]
-    user = User.query.filter_by(ippis=ippis).first()
-    email = user.email
-    try:
-        mail_att = send_email_with_attachment(email, ippis, file, os.path.join(folder, 'failed_mail'))
-        error_message = None
-    except Exception as e:
-        mail_att = False
-        error_message = str(e)
-
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_entry = {
-        'timestamp': timestamp,
-        'message': f"[{timestamp}] Successfully resent email to {email} for file {file}"
-        if mail_att else f"[{timestamp}] Failed to resend email to {email} for file {file}. Error: {error_message}",
-        'file': file,
-        'email': email,
+    progress_data[task_id] = {
+        'total': 0,
+        'sent': 0,
+        'failed': 0,
+        'logs': [],
+        'errors': [],
+        'completed': False
     }
-    progress_data['logs'].append(log_entry)
-    if not mail_att:
-        progress_data['errors'].append({
-            'file': file,
-            'email': email,
-            'error': error_message,
-            'timestamp': timestamp,
-        })
-    else:
-        sh.move(full_path, os.path.join(folder, 'success_mail'))
 
-    return redirect(url_for('retry_page'))
+    # Run the email sending function in the background
+    # Start a background thread to handle the email sending process
+    thread = Thread(target=retry_send_emails, args=(folder, task_id, failed_folder))
+    thread.start()
+
+    return render_template('results_visual.html', task_id=task_id,
+                           folder=quote(folder), filename=file_name)
+
+
+def retry_send_emails(main_folder, task_id, failed_folder):
+    with app.app_context():
+        files = [file for file in os.listdir(failed_folder)]
+
+        progress_data[task_id]['total'] = len(files)
+
+        for file in files:
+            user_id = file.split('_')[0]
+            user = User.query.filter_by(ippis=user_id).first()
+            email = user.email
+            matched_path = os.path.join(failed_folder, file)
+
+            try:
+                mail_att = send_email_with_attachment(email, user_id, file, matched_path)
+                error_message = None
+            except Exception as e:
+                mail_att = False
+                error_message = str(e)
+
+            full_path = os.path.join(failed_folder, file)
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            log_entry = {
+                'timestamp': timestamp,
+                'message': f"Successfully sent email to {email} for file {file}"
+                if mail_att else f"Failed to send email to {email} for file {file}",
+                'file': file,
+                'email': email,
+            }
+            progress_data[task_id]['logs'].append(log_entry)
+
+            if mail_att:
+                sh.move(full_path, os.path.join(main_folder, 'success_mail', file))
+                progress_data[task_id]['sent'] += 1
+            else:
+                progress_data[task_id]['failed'] += 1
+                progress_data[task_id]['errors'].append({
+                    'file': file,
+                    'email': email,
+                    'error': error_message,
+                    'timestamp': timestamp,
+                })
+
+        progress_data[task_id]['completed'] = True
 
 
 @app.route('/export_logs/', methods=['POST', 'GET'])
