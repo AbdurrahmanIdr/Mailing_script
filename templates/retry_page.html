@@ -2,9 +2,9 @@
 
 {% block body %}
     <h1>Email Sending Process Completed</h1>
-    <p>All emails have been processed for folder: {{ folder }}</p>
+    <p>All emails have been processed for folder: {{ filename }}</p>
 
-    <h2>Failed Emails</h2>
+    <h2>Logs Details</h2>
     <table id="failed-emails-table">
         <thead>
             <tr>
@@ -44,12 +44,12 @@
     </div>
 
     <h2>What do you want to do next?</h2>
-    <form action="/send_mail/" method="post">
+    <form action="/retry_send_mail" method="post">
         <input type="hidden" name="folder" value="{{ folder }}">
-        <button type="submit">Retry Sending All Emails</button>
+        <button type="submit">Retry Sending Failed Emails</button>
     </form>
     <div id="actions">
-        <form action="/export_logs" method="post">
+        <form action="/export_logs/" method="post">
             <input type="hidden" name="task_id" value="{{ task_id }}">
             <button type="submit">Export Logs and Errors</button>
         </form>
@@ -76,7 +76,7 @@
                         `;
                         logsTableBody.appendChild(tr);
                     });
-                    document.getElementById('logs-page-info').textContent = `Page ${page} of ${data.total_pages}`;
+                    document.getElementById('logs-page-info').textContent = `Page ${page} of ${data.out_of}`;
                 });
         }
 
@@ -96,7 +96,7 @@
                         `;
                         errorsTableBody.appendChild(tr);
                     });
-                    document.getElementById('errors-page-info').textContent = `Page ${page} of ${data.total_pages}`;
+                    document.getElementById('errors-page-info').textContent = `Page ${page} of ${data.out_of}`;
                 });
         }
 

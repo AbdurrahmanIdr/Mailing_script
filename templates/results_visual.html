@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block body %}
-    <h1>Email Sending Progress for Folder: {{ folder }}</h1>
-    <canvas id="progressChart" width="100" height="100"></canvas>
+    <h1>Email Sending Progress for Folder: {{ filename }}</h1>
+    <canvas id="progressChart" width="250px" height="250px"></canvas>
     <p id="status">Starting...</p>
     <div id="log">
         <h2>Log</h2>
@@ -69,8 +69,15 @@
                         task_id_in.type = 'hidden';
                         task_id_in.name = 'task_id';
                         task_id_in.value = '{{ task_id }}';
+
+                        const file_name = document.createElement('input');
+                        file_name.type = 'hidden';
+                        file_name.name = 'filename';
+                        file_name.value = '{{ filename }}';
+
                         form.appendChild(folder_in);
                         form.appendChild(task_id_in)
+                        form.appendChild(file_name)
                         document.body.appendChild(form);
                         form.submit();
                     }
