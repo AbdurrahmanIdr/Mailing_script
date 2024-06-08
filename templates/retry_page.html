@@ -3,14 +3,37 @@
 {% block body %}
     <h1>Email Sending Process Completed</h1>
     <p>All emails have been processed for folder: {{ folder }}</p>
+
     <h2>Failed Emails</h2>
-    <ul id="failed-emails-list">
-        <!-- Failed emails will be populated here dynamically -->
-    </ul>
+    <table id="failed-emails-table">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Email</th>
+                <th>File</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Failed emails will be populated here dynamically -->
+        </tbody>
+    </table>
+
     <h2>Error Details</h2>
-    <ul id="error-details-list">
-        <!-- Error details will be populated here dynamically -->
-    </ul>
+    <table id="error-details-table">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Email</th>
+                <th>File</th>
+                <th>Error</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Error details will be populated here dynamically -->
+        </tbody>
+    </table>
+
     <div id="pagination-controls">
         <button onclick="prevPage('logs')">Previous Logs</button>
         <button onclick="nextPage('logs')">Next Logs</button>
@@ -19,6 +42,7 @@
         <p id="logs-page-info"></p>
         <p id="errors-page-info"></p>
     </div>
+
     <h2>What do you want to do next?</h2>
     <form action="/send_mail/" method="post">
         <input type="hidden" name="folder" value="{{ folder }}">
@@ -40,17 +64,17 @@
             fetch(`/retry_logs/?task_id=${task_id}&page=${page}`)
                 .then(response => response.json())
                 .then(data => {
-                    const logsList = document.getElementById('failed-emails-list');
-                    logsList.innerHTML = '';
+                    const logsTableBody = document.getElementById('failed-emails-table').querySelector('tbody');
+                    logsTableBody.innerHTML = '';
                     data.logs.forEach(log => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <strong>Timestamp:</strong> ${log.timestamp}<br>
-                            <strong>Email:</strong> ${log.email}<br>
-                            <strong>File:</strong> ${log.file}<br>
-                            <strong>Message:</strong> ${log.message}<br><br>
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${log.timestamp}</td>
+                            <td>${log.email}</td>
+                            <td>${log.file}</td>
+                            <td>${log.message}</td>
                         `;
-                        logsList.appendChild(li);
+                        logsTableBody.appendChild(tr);
                     });
                     document.getElementById('logs-page-info').textContent = `Page ${page} of ${data.total_pages}`;
                 });
@@ -60,17 +84,17 @@
             fetch(`/retry_errors/?task_id=${task_id}&page=${page}`)
                 .then(response => response.json())
                 .then(data => {
-                    const errorsList = document.getElementById('error-details-list');
-                    errorsList.innerHTML = '';
+                    const errorsTableBody = document.getElementById('error-details-table').querySelector('tbody');
+                    errorsTableBody.innerHTML = '';
                     data.errors.forEach(error => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <strong>Timestamp:</strong> ${error.timestamp}<br>
-                            <strong>Email:</strong> ${error.email}<br>
-                            <strong>File:</strong> ${error.file}<br>
-                            <strong>Error:</strong> ${error.error}<br><br>
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${error.timestamp}</td>
+                            <td>${error.email}</td>
+                            <td>${error.file}</td>
+                            <td>${error.error}</td>
                         `;
-                        errorsList.appendChild(li);
+                        errorsTableBody.appendChild(tr);
                     });
                     document.getElementById('errors-page-info').textContent = `Page ${page} of ${data.total_pages}`;
                 });
