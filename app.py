@@ -22,7 +22,7 @@ from models.pdf_rel import splitter, base_dir, progress
 
 app = Flask(__name__)
 app.secret_key = token_urlsafe(32)
-db_path = os.path.join(base_dir, 'db.sqlite')
+db_path = os.path.abspath('db.sqlite')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
