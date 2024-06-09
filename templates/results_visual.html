@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 {% block body %}
     <h1>Email Sending Progress for Folder: {{ filename }}</h1>
-    <canvas id="progressChart" width="250px" height="250px"></canvas>
+    <div class="canvas-container">
+        <canvas id="progressChart" ></canvas>
+    </div>
     <p id="status">Starting...</p>
     <div id="log">
         <h2>Log</h2>
@@ -61,10 +63,12 @@
                         const form = document.createElement('form');
                         form.method = 'POST';
                         form.action = '/retry_page/';
+
                         const folder_in = document.createElement('input');
                         folder_in.type = 'hidden';
                         folder_in.name = 'folder';
                         folder_in.value = '{{ folder }}';
+
                         const task_id_in = document.createElement('input');
                         task_id_in.type = 'hidden';
                         task_id_in.name = 'task_id';
@@ -86,7 +90,11 @@
                     data.logs.forEach(log => {
                         const li = document.createElement('li');
                         li.textContent = log.message;
-                        logList.appendChild(li);
+                        if (logList.firstChild) {
+                            logList.insertBefore(li, logList.firstChild);
+                        } else {
+                            logList.appendChild(li);
+                        }
                     });
                 });
         }
