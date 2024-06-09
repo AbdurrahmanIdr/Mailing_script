@@ -100,7 +100,7 @@ def upload():
         if os.path.exists(full_path):
             os.remove(full_path)
         file.save(full_path)
-        flash(f'{file.filename} saved successfully at {base_dir}', 'success')
+        flash(f'{file.filename} saved successfully.', 'success')
 
     else:
         flash(f'{file.filename} failed to upload check the file type != PDF', 'error')
