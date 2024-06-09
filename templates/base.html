@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
         {% if title %}
-            Notification Mail - {{ title }}
+            Notification Script - {{ title }}
         {% else %}
-            Notification Mail
+            Notification Script
         {% endif %}
     </title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='scripts/charts.js') }}"></script>
 </head>
 <body>
 <div class="container">
