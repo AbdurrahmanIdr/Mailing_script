@@ -6,6 +6,8 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import socket
+from pathlib import Path
 
 # In-memory storage for progress and logs
 progress_data = dict()
@@ -25,7 +27,6 @@ smtp_server = config['Email']['smtp_server']
 smtp_port = config['Email'].getint('smtp_port')
 sender_email = config['Email']['sender_email']
 sender_password = config['Email']['sender_password']
-
 
 # Maximum retry attempts for email sending
 MAX_RETRY_ATTEMPTS = 3
@@ -49,8 +50,8 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
         try:
             # Validate input for clarity and security
             if not all([recipient_email, user_id, filename]):
-                print("Error: Missing information for email notification.")
-                return
+                error = "Error: Missing information for email notification."
+                return False, error
 
             # Configure email details
             subject = f"User ID: {user_id} in File: {filename}"
@@ -77,7 +78,8 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
                     pdf_part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
                     message.attach(pdf_part)
             elif matched_file_path:
-                print(f"Warning: {matched_file_path} is not a PDF file or does not exist.")
+                mfp = Path(matched_file_path)
+                return False, f"Warning: {mfp.name} is not a PDF file or does not exist."
 
             # Create a secure connection with SMTP server
             with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
@@ -85,17 +87,19 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
 
                 # Send the email
                 server.sendmail(sender_email, recipient_email, message.as_string())
-                print(f"Email notification sent to {recipient_email} for user ID {user_id}.")
-                return True  # Success, exit retry loop
+                error = f"Email notification sent to {recipient_email} for user ID {user_id}."
+                return True, error  # Success, exit retry loop
 
-        except (smtplib.SMTPException, FileNotFoundError) as e:
+        except (smtplib.SMTPException, FileNotFoundError, socket.gaierror, Exception) as e:
             print(f"Error sending email notification: {e}")
             attempts += 1
+
             if attempts < MAX_RETRY_ATTEMPTS:
                 print(f"Retrying email sending in {RETRY_INTERVAL} seconds...")
                 time.sleep(RETRY_INTERVAL)  # Wait before retrying
+
             else:
-                print(f"Maximum retries ({MAX_RETRY_ATTEMPTS}) reached. Email sending failed.")
-                return False
+                error = f"Maximum retries ({MAX_RETRY_ATTEMPTS}) reached.\nError sending email notification:\n{e}"
+                return False, error
 
     # End of retry loop
