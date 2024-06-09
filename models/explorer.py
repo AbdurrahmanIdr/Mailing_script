@@ -142,3 +142,17 @@ def search_files(directory, query, depth=3):
 
     recursive_search(directory, 0)
     return search_results
+
+
+def query_string(folder, db_found):
+    split_files = [f.split('_')[0] for f in os.listdir(folder) if f.endswith('.pdf')]
+    db_ippis = [user.ippis for user in db_found]
+
+    file_users = set(split_files)
+    db_users = set(db_ippis)
+
+    active_found = file_users & db_users  # in db and pdf files
+    inactive = file_users - db_users  # in pdf files but not in db
+    unknown = db_users - file_users  # in db but not in pdf files
+
+    return active_found, inactive, unknown
