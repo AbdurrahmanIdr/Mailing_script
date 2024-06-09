@@ -13,16 +13,30 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{{ url_for('static', filename='scripts/chart.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/base_script.js') }}"></script>
+
 </head>
 <body>
 <div class="container">
     <header>
         <h1>Notification Script</h1>
     </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+                {% for message in messages %}
+                    <li class="flash">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
     {% block body %}
 
 
     {% endblock %}
+
     <footer>
         <p>&copy; 2024 NASRDA ICT. </p>
     </footer>
