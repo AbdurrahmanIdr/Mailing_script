@@ -106,44 +106,6 @@ def get_file_info(file_path):
     return file_info
 
 
-def search_files(directory, query, depth=3):
-    """
-        Search for files in the specified directory matching the given query.
-
-        Args:
-            directory (Path): Directory to search.
-            query (str): Search query.
-            depth (int): Depth of recursive search.
-
-        Returns:
-            list: List of search results.
-        """
-    search_results = []
-
-    def recursive_search(path, current_depth):
-        if current_depth > depth:
-            return
-
-        for item in path.iterdir():
-            try:
-                if query.lower() in item.name.lower():
-                    search_results.append({
-                        'name': item.name,
-                        'path': str(item.resolve()),
-                        'is_file': item.is_file(),
-                        'size': format_file_size(item.stat().st_size) if item.is_file() else None,
-                        'last_modified': datetime.fromtimestamp(item.stat().st_mtime).strftime(
-                            '%Y-%m-%d %H:%M:%S') if item.is_file() else None,
-                    })
-                if item.is_dir():
-                    recursive_search(item, current_depth + 1)  # Recursively search in subdirectories
-            except PermissionError:
-                continue
-
-    recursive_search(directory, 0)
-    return search_results
-
-
 def query_string(folder, db_found):
     split_files = [f.split('_')[0] for f in os.listdir(folder) if f.endswith('.pdf')]
     db_ippis = [user.ippis for user in db_found]

@@ -2,14 +2,6 @@
 {% block body %}
 
     <div class="header">
-        <!-- Search Box -->
-        <form action="{{ url_for('search') }}" method="post" class="search-form">
-            <label for="search"></label><input type="text" id="search" name="query"
-                                               placeholder="Enter file or folder name">
-            <button type="submit">Search</button>
-            <input type="hidden" name="dir" value="{{ current_directory }}">
-        </form>
-
         <!-- Upload Form -->
         <form id="file-upload-form" action="{{ url_for('upload') }}"
               method="post"

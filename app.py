@@ -15,7 +15,7 @@ from flask import Flask, render_template, url_for, request, redirect, jsonify, s
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
-from models.explorer import (get_sorted_files, get_file_info, search_files, format_file_size,
+from models.explorer import (get_sorted_files, get_file_info, format_file_size,
                              datetimeformat, query_string)
 from models.mail_mod import send_email_with_attachment, progress_data
 from models.pdf_rel import splitter, base_dir, progress
@@ -103,22 +103,6 @@ def directories(rel_directory=base_dir):
     if os.path.isdir(rel_directory):
         files, current_directory = get_sorted_files(rel_directory)
         return render_template('directories.html', files=files, current_directory=current_directory)
-
-
-@app.route('/search/', methods=['POST'])
-def search():
-    """
-       Render the page with search results.
-
-       Returns:
-           render_template: Rendered HTML template.
-       """
-    query = request.form.get('query', '')
-    abs_directory = request.form.get('dir', base_dir)
-    current_directory = Path(abs_directory)
-    search_results = search_files(current_directory, query)
-    return render_template('search_results.html', files=search_results,
-                           current_directory=current_directory.resolve(), query=query)
 
 
 @app.route('/view_file/<path:filepath>/', methods=['GET', 'POST'])
