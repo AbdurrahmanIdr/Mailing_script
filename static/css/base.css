@@ -262,6 +262,26 @@ footer {
 }
 
 
+/* Flash Messages */
+.flash {
+    position: relative;
+    color: #000;
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0; /* Light gray background for flash messages */
+    transition: opacity 1s ease-in-out;
+}
+
+.flash.error {
+    color: red;
+}
+
+.flash.success {
+    color: green;
+}
+
+
+
 /* Responsive Design */
 @media only screen and (max-width: 600px) {
     .container {
@@ -275,17 +295,4 @@ footer {
     th, td {
         padding: 8px;
     }
-}
-
-/* Flash Messages */
-.flash {
-    position: relative;
-    /*top: 20px;*/
-    /*left: 50%;*/
-    transform: translateX(-50%);
-    padding: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #ccc;
-    background-color: #f0f0f0; /* Light gray background for flash messages */
-    transition: opacity 1s ease-in-out;
 }
