@@ -19,6 +19,12 @@
         </tbody>
     </table>
 
+     <div id="pagination-controls-logs">
+        <button onclick="prevPage('logs')">Previous Logs</button>
+        <button onclick="nextPage('logs')">Next Logs</button>
+        <p id="logs-page-info"></p>
+    </div>
+
     <h2>Error Details</h2>
     <table id="error-details-table">
         <thead>
@@ -34,12 +40,9 @@
         </tbody>
     </table>
 
-    <div id="pagination-controls">
-        <button onclick="prevPage('logs')">Previous Logs</button>
-        <button onclick="nextPage('logs')">Next Logs</button>
+    <div id="pagination-controls-errors">
         <button onclick="prevPage('errors')">Previous Errors</button>
         <button onclick="nextPage('errors')">Next Errors</button>
-        <p id="logs-page-info"></p>
         <p id="errors-page-info"></p>
     </div>
 
