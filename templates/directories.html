@@ -2,19 +2,25 @@
 {% block body %}
 
     <div class="header">
+
+        <!-- Add User Form -->
+        <form action="{{ url_for('add_user') }}"
+              method="get">
+            <button type="submit">Add User</button>
+        </form>
+
         <!-- Upload Form -->
-        <form id="file-upload-form" action="{{ url_for('upload') }}"
+        <form action="{{ url_for('upload') }}"
               method="post"
               enctype="multipart/form-data">
             <input type="file" name="file" id="file" required>
             <button type="submit">Upload</button>
         </form>
 
-        {#            <form action="{{ url_for('logout') }}" method="POST" class="logout-form">#}
-        {#                <button type="submit">Logout</button>#}
-        {#            </form>#}
-
-    <a href="{{ url_for('add_user') }}">Add New User</a>
+        <!-- Logout Form -->
+{#        <form action="{{ url_for('logout') }}" method="POST" class="logout-form">#}
+{#            <button type="submit">Logout</button>#}
+{#        </form>#}
 
     </div>
 
@@ -35,7 +41,8 @@
                 <tr>
                     <td>
                         <form id="file-selection-form" action="{{ url_for('retrieve_selected_path') }}" method="post">
-                            <input type="hidden" name="selected_file" id="selected_file" value="{{ current_directory / file }}">
+                            <input type="hidden" name="selected_file" id="selected_file"
+                                   value="{{ current_directory / file }}">
                             <button type="submit">Select</button>
                         </form>
 
