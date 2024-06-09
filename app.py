@@ -186,6 +186,10 @@ def retrieve_selected_path():
         """
     selected_file = request.form.get('selected_file')
     if os.path.isdir(selected_file):
+        files = os.listdir(selected_file)
+        if 'success_mail' in files and 'failed_mail' in files:
+            return redirect(url_for('retry_send_mail', folder=selected_file))
+
         return render_template('query_db.html', folder=selected_file)
 
     elif os.path.isfile(selected_file):
@@ -384,14 +388,16 @@ def progress_mail(task_id):
 def retry_page():
     folder = request.form.get('folder')
     task_id = request.form.get('task_id')
-    return render_template('retry_page.html', task_id=task_id, folder=folder)
+    filename = request.form.get('filename')
+    return render_template('retry_page.html', task_id=task_id,
+                           folder=folder, filename=filename)
 
 
 @app.route('/retry_logs/', methods=['GET'])
 def retry_logs():
     task_id = request.args.get('task_id')
     page = int(request.args.get('page', 1))
-    per_page = 10
+    per_page = 2
     start = (page - 1) * per_page
     end = start + per_page
     logs_paginated = progress_data[task_id]['logs'][start:end]
@@ -404,7 +410,7 @@ def retry_logs():
 def retry_errors():
     task_id = request.args.get('task_id')
     page = int(request.args.get('page', 1))
-    per_page = 10
+    per_page = 2
     start = (page - 1) * per_page
     end = start + per_page
     errors_paginated = progress_data[task_id]['errors'][start:end]
@@ -413,9 +419,13 @@ def retry_errors():
     return jsonify(errors=errors_paginated, total=total, out_of=out_of)
 
 
-@app.route('/retry_send_mail/', methods=['POST'])
+@app.route('/retry_send_mail/', methods=['GET', 'POST'])
 def retry_send_mail():
-    folder = unquote(request.form['folder'])
+    if request.method == 'POST':
+        folder = unquote(request.form['folder'])
+    else:
+        folder = request.args.get('folder')
+
     task_id = str(time.time())  # Generate a unique task ID
     failed_folder = os.path.join(folder, 'failed_mail')
     file_name = Path(folder).name
