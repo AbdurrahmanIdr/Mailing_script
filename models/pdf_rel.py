@@ -4,6 +4,9 @@ import time
 
 from PyPDF2 import PdfReader, PdfWriter
 
+if not os.path.exists('data'):
+    os.makedirs('data')
+
 base_dir = os.path.abspath('data')
 progress = dict()
 
