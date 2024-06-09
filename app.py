@@ -67,6 +67,23 @@ app.jinja_env.filters['datetimeformat'] = datetimeformat
 # def login():
 #     return render_template('login.html')
 
+@app.route("/add_user/", methods=['GET', 'POST'])
+def add_user():
+    if request.method == 'POST':
+        email = request.form['email']
+        ippis = request.form['ippis']
+        active = 'active' in request.form
+
+        new_user = User(email=email, ippis=ippis, active=active)
+        db.session.add(new_user)
+        db.session.commit()
+
+        print(f'User {email} added successfully.')
+        return redirect(url_for('directories'))
+
+    return render_template('add_user.html')
+
+
 @app.route("/upload/", methods=['POST'])
 def upload():
     file = request.files.get('file')
@@ -263,23 +280,6 @@ def back_to_result():
 
     return render_template('results.html', active=active, inactive=inactive, unknown=unknown,
                            folder=folder)
-
-
-@app.route("/add_user/", methods=['GET', 'POST'])
-def add_user():
-    if request.method == 'POST':
-        email = request.form['email']
-        ippis = request.form['ippis']
-        active = 'active' in request.form
-
-        new_user = User(email=email, ippis=ippis, active=active)
-        db.session.add(new_user)
-        db.session.commit()
-
-        print(f'User {email} added successfully.')
-        return redirect(url_for('index'))
-
-    return render_template('add_user.html')
 
 
 @app.route('/send_mail/', methods=['POST'])
