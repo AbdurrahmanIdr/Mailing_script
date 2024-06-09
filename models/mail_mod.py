@@ -91,7 +91,7 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
                 return True, error  # Success, exit retry loop
 
         except (smtplib.SMTPException, FileNotFoundError, socket.gaierror, Exception) as e:
-            print(f"Error sending email notification: {e}")
+            print(f"Error sending email notification: {str(e)}")
             attempts += 1
 
             if attempts < MAX_RETRY_ATTEMPTS:
@@ -99,7 +99,7 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
                 time.sleep(RETRY_INTERVAL)  # Wait before retrying
 
             else:
-                error = f"Maximum retries ({MAX_RETRY_ATTEMPTS}) reached.\nError sending email notification:\n{e}"
+                error = f"Maximum retries ({MAX_RETRY_ATTEMPTS}) reached.\nError sending email notification:\n{str(e)}"
                 return False, error
 
     # End of retry loop
