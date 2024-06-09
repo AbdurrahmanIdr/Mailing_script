@@ -70,16 +70,19 @@ app.jinja_env.filters['datetimeformat'] = datetimeformat
 @app.route("/add_user/", methods=['GET', 'POST'])
 def add_user():
     if request.method == 'POST':
-        email = request.form['email']
-        ippis = request.form['ippis']
-        active = 'active' in request.form
+        try:
+            email = request.form['email']
+            ippis = request.form['ippis']
+            active = 'active' in request.form
 
-        new_user = User(email=email, ippis=ippis, active=active)
-        db.session.add(new_user)
-        db.session.commit()
+            new_user = User(email=email, ippis=ippis, active=active)
+            db.session.add(new_user)
+            db.session.commit()
 
-        print(f'User {email} added successfully.')
-        return redirect(url_for('directories'))
+            print(f'User {email} added successfully.')
+            return redirect(url_for('directories'))
+        except Exception as e:
+            flash(f'{str(e)} ')
 
     return render_template('add_user.html')
 
