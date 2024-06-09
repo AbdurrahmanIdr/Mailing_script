@@ -2,9 +2,17 @@
 {% block body %}
     <h1>Email Sending Progress for Folder: {{ filename }}</h1>
     <div class="canvas-container">
-        <canvas id="progressChart" ></canvas>
+        <canvas id="progressChart"></canvas>
     </div>
     <p id="status">Starting...</p>
+
+    <form id="cancelForm" action="/cancel_task/" method="post" style="display:inline;">
+        <input type="hidden" name="task_id" value="{{ task_id }}">
+        <input type="hidden" name="filename" value="{{ filename }}">
+        <input type="hidden" name="folder" value="{{ folder }}">
+        <button type="submit">Cancel Sending Emails</button>
+    </form>
+
     <div id="log">
         <h2>Log</h2>
         <ul id="log-list"></ul>
@@ -80,8 +88,8 @@
                         file_name.value = '{{ filename }}';
 
                         form.appendChild(folder_in);
-                        form.appendChild(task_id_in)
-                        form.appendChild(file_name)
+                        form.appendChild(task_id_in);
+                        form.appendChild(file_name);
                         document.body.appendChild(form);
                         form.submit();
                     }
@@ -90,14 +98,26 @@
                     data.logs.forEach(log => {
                         const li = document.createElement('li');
                         li.textContent = log.message;
-                        if (logList.firstChild) {
-                            logList.insertBefore(li, logList.firstChild);
-                        } else {
-                            logList.appendChild(li);
-                        }
+                        logList.insertBefore(li, logList.firstChild);
                     });
                 });
         }
+
+        document.getElementById('cancelForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+
+            fetch(this.action, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    }
+                });
+        });
 
         setInterval(updateProgress, 1000);
     </script>
