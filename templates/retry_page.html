@@ -19,7 +19,7 @@
         </tbody>
     </table>
 
-     <div id="pagination-controls-logs">
+    <div id="pagination-controls-logs">
         <button onclick="prevPage('logs')">Previous Logs</button>
         <button onclick="nextPage('logs')">Next Logs</button>
         <p id="logs-page-info"></p>
@@ -80,6 +80,9 @@
                         logsTableBody.appendChild(tr);
                     });
                     document.getElementById('logs-page-info').textContent = `Page ${page} of ${data.out_of}`;
+                    if (logsPage >= data.out_of) {
+                        logsPage = data.out_of;
+                    }
                 });
         }
 
@@ -100,16 +103,31 @@
                         errorsTableBody.appendChild(tr);
                     });
                     document.getElementById('errors-page-info').textContent = `Page ${page} of ${data.out_of}`;
+                    if (errorsPage >= data.out_of) {
+                        errorsPage = data.out_of;
+                    }
                 });
         }
 
         function nextPage(type) {
             if (type === 'logs') {
-                logsPage++;
-                loadLogs(logsPage);
+                fetch(`/retry_logs/?task_id=${task_id}&page=${logsPage}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (logsPage < data.out_of) {
+                            logsPage++;
+                            loadLogs(logsPage);
+                        }
+                    });
             } else if (type === 'errors') {
-                errorsPage++;
-                loadErrors(errorsPage);
+                fetch(`/retry_errors/?task_id=${task_id}&page=${errorsPage}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (errorsPage < data.out_of) {
+                            errorsPage++;
+                            loadErrors(errorsPage);
+                        }
+                    });
             }
         }
 

@@ -403,7 +403,7 @@ def retry_logs():
     logs_paginated = progress_data[task_id]['logs'][start:end]
     total = len(progress_data[task_id]['logs'])
     out_of = math.ceil(total / per_page)
-    return jsonify(logs=logs_paginated, total=total, out_of=out_of)
+    return jsonify(logs=logs_paginated, total=total, n_logs=out_of)
 
 
 @app.route('/retry_errors/', methods=['GET'])
@@ -416,7 +416,7 @@ def retry_errors():
     errors_paginated = progress_data[task_id]['errors'][start:end]
     total = len(progress_data[task_id]['errors'])
     out_of = math.ceil(total / per_page)
-    return jsonify(errors=errors_paginated, total=total, out_of=out_of)
+    return jsonify(errors=errors_paginated, total=total, n_errors=out_of)
 
 
 @app.route('/retry_send_mail/', methods=['GET', 'POST'])
