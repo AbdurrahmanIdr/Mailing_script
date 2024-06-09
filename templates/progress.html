@@ -19,7 +19,7 @@
                     document.getElementById('progress-bar-inner').style.width = progress + '%';
                     document.getElementById('progress-text').innerText = progress.toFixed(2) + '% complete';
                     if (progress < 100) {
-                        setTimeout(checkProgress, 1000);  // Check progress every second
+                        setTimeout(checkProgress, 10000);  // Check progress every 10 seconds
                     } else {
                         // Use a form to submit the folder via POST
                         const form = document.createElement('form');
