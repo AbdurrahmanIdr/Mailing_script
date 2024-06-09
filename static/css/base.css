@@ -38,7 +38,6 @@ li {
 }
 
 
-
 table {
     width: 100%;
     border-collapse: collapse;
@@ -87,7 +86,7 @@ button:hover {
 }
 
 /* Form Styles */
-.form_btn  {
+.form_btn {
     background-color: #fff;
     padding: 30px;
     margin-top: 10px;
@@ -193,6 +192,7 @@ input[type="text"] {
     font-size: 14px;
     color: #333;
 }
+
 /* Results Styles */
 h2 {
     color: #4CAF50; /* Updated color */
@@ -231,20 +231,32 @@ h2 {
 }
 
 #log {
-            margin-top: 20px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
+    margin-top: 20px;
+    max-height: 300px;
+    overflow-y: auto;
+}
 
 #notifications {
-            margin-top: 20px;
-        }
-        .notification.error {
-            color: red;
-        }
-        .notification.success {
-            color: green;
-        }
+    margin-top: 20px;
+}
+
+.notification.error {
+    color: red;
+}
+
+.notification.success {
+    color: green;
+}
+
+.canvas-container {
+    width: 300px;
+    margin: 0 auto;
+}
+
+#progressChart {
+    width: 100%;
+    height: auto;
+}
 
 /* Footer Styles */
 footer {
