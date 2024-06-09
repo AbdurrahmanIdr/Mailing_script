@@ -79,10 +79,10 @@ def add_user():
             db.session.add(new_user)
             db.session.commit()
 
-            print(f'User {email} added successfully.')
+            flash(f'User {email} added successfully.', 'success')
             return redirect(url_for('directories'))
         except Exception as e:
-            flash(f'{str(e)} ')
+            flash(f'{str(e)}', 'error')
 
     return render_template('add_user.html')
 
@@ -100,10 +100,10 @@ def upload():
         if os.path.exists(full_path):
             os.remove(full_path)
         file.save(full_path)
-        print(f'{file.filename} saved successfully at {base_dir}')
+        flash(f'{file.filename} saved successfully at {base_dir}', 'success')
 
     else:
-        print(f'{file.filename} failed to upload check the file type != PDF')
+        flash(f'{file.filename} failed to upload check the file type != PDF', 'error')
 
     return redirect(url_for('directories'))
 
@@ -140,7 +140,7 @@ def view_file(filepath):
     file_path = Path(filepath)
 
     if not file_path.exists():
-        flash(f"The file '{file_path}' does not exist.")
+        flash(f"The file '{file_path}' does not exist.", 'error')
         return redirect(request.url)
 
     file_info = get_file_info(file_path)
@@ -531,6 +531,7 @@ def export_logs():
     zip_buffer.seek(0)
 
     timedate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    flash(f'Saving to logs_and_errors_{timedate}.zip')
 
     return send_file(
         zip_buffer,
