@@ -5,7 +5,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f3f4f6;
+    background-color: #e0e0e0;
     margin: 0;
     color: #333;
 }
@@ -26,6 +26,7 @@ li {
     padding: 30px 20px;
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    opacity: 0.8;
 }
 
 .fixed-button {
@@ -115,6 +116,14 @@ form input[type="text"] {
     box-sizing: border-box;
     font-size: 16px;
     color: #333;
+}
+
+#bar-h1 {
+    color: #fff;
+}
+
+#bar-h1:hover {
+    color: #f0f0f0;
 }
 
 #active {
