@@ -75,7 +75,9 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
                     pdf_part = MIMEBase("application", "octet-stream")
                     pdf_part.set_payload(attachment_file.read())
                     encoders.encode_base64(pdf_part)
-                    pdf_part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+                    nane = filename.split('_')
+                    new_filename = f'{nane[0][:-2]}**_{nane[1]}_{nane[2]}'
+                    pdf_part.add_header('Content-Disposition', f'attachment; filename="{new_filename}"')
                     message.attach(pdf_part)
             elif matched_file_path:
                 mfp = Path(matched_file_path)
@@ -91,13 +93,9 @@ def send_email_with_attachment(recipient_email, user_id, filename, matched_file_
                 return True, error  # Success, exit retry loop
 
         except (smtplib.SMTPException, FileNotFoundError, socket.gaierror, Exception) as e:
-            from app import flash
-            flash(f"Error sending email notification: {str(e)}")
             attempts += 1
 
             if attempts < MAX_RETRY_ATTEMPTS:
-                from app import flash
-                flash(f"Retrying email sending in {RETRY_INTERVAL} seconds...")
                 time.sleep(RETRY_INTERVAL)  # Wait before retrying
 
             else:
