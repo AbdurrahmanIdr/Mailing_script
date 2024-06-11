@@ -5,6 +5,7 @@ import os
 import shutil as sh
 import time
 import zipfile
+
 from io import BytesIO, StringIO
 from pathlib import Path
 from secrets import token_urlsafe
@@ -14,6 +15,7 @@ from urllib.parse import quote, unquote
 from flask import Flask, render_template, url_for, request, redirect, jsonify, session, flash, send_file
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from models.explorer import (get_sorted_files, get_file_info, format_file_size,
                              datetimeformat, query_string)
@@ -31,30 +33,57 @@ progress = progress
 
 
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     ippis = db.Column(db.String(20), unique=True, nullable=False)
     email = db.Column(db.String(100), nullable=False)
+    first_name = db.Column(db.String(100), nullable=False)
+    surname = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(100), nullable=True)
     active = db.Column(db.Boolean, default=False)
 
-    def __init__(self, email, ippis, active=False):
+    def __init__(self, email, ippis, first_name, surname, phone, active=False):
         self.email = email
         self.ippis = ippis
+        self.first_name = first_name
+        self.surname = surname
+        self.phone = phone
         self.active = active
 
 
 class ActiveUser(db.Model):
+    __tablename__ = 'active'
     id = db.Column(db.Integer, primary_key=True)
     ippis = db.Column(db.String(20), nullable=False)
 
 
 class InactiveUser(db.Model):
+    __tablename__ = 'inactive_users'
     id = db.Column(db.Integer, primary_key=True)
     ippis = db.Column(db.String(20), nullable=False)
 
 
 class UnknownUser(db.Model):
+    __tablename__ = 'unknown_users'
     id = db.Column(db.Integer, primary_key=True)
     ippis = db.Column(db.String(20), nullable=False)
+
+
+class Admins(db.Model):
+    __tablename__ = 'admins'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(20), unique=True, nullable=False)
+    password_hash = db.Column(db.String(20), nullable=False)
+
+    def password(self):
+        raise AttributeError('password is not a readable attribute')
+
+    @password.setter
+    def password(self, password):
+        self.password_hash = generate_password_hash(str(password))
+
+    def verify_password(self, password):
+        return check_password_hash(self.password_hash, str(password))
 
 
 # db.create_all()
@@ -63,19 +92,36 @@ app.jinja_env.filters['format_file_size'] = format_file_size
 app.jinja_env.filters['datetimeformat'] = datetimeformat
 
 
-# @app.route('/login/')
-# def login():
-#     return render_template('login.html')
+@app.route('/login/', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        user = Admins.query.filter_by(username=username).first()
+
+        if user and user.verify_password(password):
+            flash(f'{username} login successfully.', 'success')
+            return redirect(url_for('directories'))
+
+        flash(f'username or password is incorrect, try again.', 'error')
+
+    return render_template('login.html')
+
 
 @app.route("/add_user/", methods=['GET', 'POST'])
 def add_user():
     if request.method == 'POST':
         try:
-            email = request.form['email']
-            ippis = request.form['ippis']
+            email = request.form.get('email')
+            ippis = request.form.get('ippis')
+            first_name = request.form.get('first_name')
+            surname = request.form.get('surname')
+            phone = request.form.get('phone')
             active = 'active' in request.form
 
-            new_user = User(email=email, ippis=ippis, active=active)
+            new_user = User(email=email, ippis=ippis, first_name=first_name,
+                            surname=surname, phone=phone, active=active)
             db.session.add(new_user)
             db.session.commit()
 
@@ -85,6 +131,26 @@ def add_user():
             flash(f'{str(e)}', 'error')
 
     return render_template('add_user.html')
+
+
+@app.route("/remove_user/", methods=['GET', 'POST'])
+def remove_user():
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            ippis = request.form.get('ippis')
+
+            user = User.query.filter_by(email=email).first()
+            if user and user.ippis == ippis:
+                db.session.delete(user)
+                db.session.commit()
+
+                flash(f'User {email} removed successfully.', 'success')
+                return redirect(url_for('directories'))
+        except Exception as e:
+            flash(f'{str(e)}', 'error')
+
+    return render_template('remove_user.html')
 
 
 @app.route("/upload/", methods=['POST'])
@@ -176,7 +242,7 @@ def delete_file_or_directory():
             else:
                 flash('File or directory does not exist.', 'error')
         except Exception as e:
-            flash('An error occurred while deleting the file/directory.', f'{e}')
+            flash(f'An error occurred while deleting the file/directory.\n{e}', 'error')
 
         return redirect(url_for('directories', rel_directory=current_directory))
 
@@ -203,17 +269,21 @@ def retrieve_selected_path():
 
 @app.route('/split_encrypt/', methods=['POST'])
 def split_encrypt():
-    file = request.form.get('file')
-    task_id = str(time.time())  # Generate a unique task ID
-    progress[task_id] = 0  # Initialize progress
-    file_path = os.path.join(base_dir, file.split('.')[0])
-    folder_encoded = quote(file_path)
+    try:
+        file = request.form.get('file')
+        task_id = str(time.time())  # Generate a unique task ID
+        progress[task_id] = 0  # Initialize progress
+        file_path = os.path.join(base_dir, file.split('.')[0])
+        folder_encoded = quote(file_path)
 
-    # Run the splitter function in the background
-    thread = Thread(target=splitter, args=(file, task_id))
-    thread.start()
+        # Run the splitter function in the background
+        thread = Thread(target=splitter, args=(file, task_id))
+        thread.start()
 
-    return render_template('progress.html', task_id=task_id, folder=folder_encoded)
+        return render_template('progress.html', task_id=task_id, folder=folder_encoded)
+    except Exception as e:
+        flash(f'An error occurred while splitting the file.\n{e}', 'error')
+        return redirect(url_for('directories'))
 
 
 @app.route('/progress/<task_id>')
@@ -269,7 +339,8 @@ def view_users(category):
     elif category == 'unknown':
         users = UnknownUser.query.all()
     else:
-        return redirect(url_for('index'))
+        flash('Category does not exist.', 'error')
+        return redirect(url_for('directories'))
 
     return render_template('view_users.html', category=category, users=users)
 
@@ -383,12 +454,13 @@ def retry_page():
 def retry_logs():
     task_id = request.args.get('task_id')
     page = int(request.args.get('page', 1))
-    per_page = 2
+    per_page = 5
     start = (page - 1) * per_page
     end = start + per_page
     logs_paginated = progress_data[task_id]['logs'][start:end]
     total = len(progress_data[task_id]['logs'])
     out_of = math.ceil(total / per_page)
+    out_of = out_of if out_of != 0 else 1
     return jsonify(logs=logs_paginated, total=total, n_logs=out_of)
 
 
@@ -396,12 +468,13 @@ def retry_logs():
 def retry_errors():
     task_id = request.args.get('task_id')
     page = int(request.args.get('page', 1))
-    per_page = 2
+    per_page = 4
     start = (page - 1) * per_page
     end = start + per_page
     errors_paginated = progress_data[task_id]['errors'][start:end]
     total = len(progress_data[task_id]['errors'])
     out_of = math.ceil(total / per_page)
+    out_of = out_of if out_of != 0 else 1
     return jsonify(errors=errors_paginated, total=total, n_errors=out_of)
 
 
@@ -411,6 +484,10 @@ def retry_send_mail():
         folder = unquote(request.form['folder'])
     else:
         folder = request.args.get('folder')
+
+    if not folder:
+        flash("No folder provided for retry_send_mail", 'error')
+        return redirect(url_for('directories'))
 
     task_id = str(time.time())  # Generate a unique task ID
     failed_folder = os.path.join(folder, 'failed_mail')
@@ -489,17 +566,19 @@ def retry_send_emails(main_folder, task_id, failed_folder):
 
 @app.route('/cancel_task/', methods=['POST'])
 def cancel_task():
-    task_id = request.form['task_id']
-    folder = request.form['folder']
-    filename = request.form['filename']
+    try:
+        task_id = request.form['task_id']
+        folder = request.form['folder']
+        filename = request.form['filename']
 
-    if task_id in progress_data:
-        progress_data[task_id]['cancelled'] = True
-        progress_data[task_id]['status'] = 'canceled'
-        return jsonify({'status': 'Task canceled',
-                        'redirect': url_for('retry_page', task_id=task_id, folder=folder, filename=filename)})
-    else:
-        return jsonify({'status': 'Task not found'}), 404
+        if task_id in progress_data:
+            progress_data[task_id]['cancelled'] = True
+            progress_data[task_id]['status'] = 'canceled'
+            return jsonify({'status': 'Task canceled',
+                            'redirect': url_for('retry_page', task_id=task_id, folder=folder, filename=filename)})
+    except KeyError:
+        flash("No task ID provided", 'error')
+        return redirect(url_for('directories'))
 
 
 @app.route('/export_logs/', methods=['POST', 'GET'])
