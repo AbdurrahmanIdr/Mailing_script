@@ -52,10 +52,10 @@ def splitter(filename, task_id):
             if name[0] == '482427':
                 name[0] = str(int(name[0]) + i)
 
-            pswd = f'{name[0][-2:]}{name[1][-2:]}'
+            pswd = f'{name[1][:2]}{name[0][-2:]}'
             pdf_writer.encrypt(pswd)
 
-            name = f'{name[0]}_{name[1]}_{name[2]}_{name[3]}.pdf'
+            name = f'{name[0]}_{name[1]}_{name[2]}-{name[3]}.pdf'
 
             file_name = str(os.path.join(base_dir, filename.split('.')[0], name))
             with open(file_name, 'wb') as f:
