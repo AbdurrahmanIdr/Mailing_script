@@ -19,7 +19,7 @@
 <body>
 <div class="container">
     <header>
-        <h1>Notification Script</h1>
+        <h1><a id="bar-h1" href="{{ url_for('directories') }}">Notification Script</a></h1>
     </header>
     <div>
         {% with messages = get_flashed_messages(with_categories=true) %}
