@@ -11,12 +11,21 @@
         {% endif %}
     </title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    {% block style%}
+
+    {% endblock %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{{ url_for('static', filename='scripts/chart.js') }}"></script>
     <script src="{{ url_for('static', filename='scripts/base_script.js') }}"></script>
+    {% block script %}
+
+    {% endblock %}
 
 </head>
 <body>
+    {% block login %}
+    
+    {% endblock %}
 <div class="container">
     <header>
         <h1><a id="bar-h1" href="{{ url_for('directories') }}">Notification Script</a></h1>
