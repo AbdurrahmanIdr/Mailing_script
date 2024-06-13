@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block body %}
+
+    <form 
+        action="{{ url_for('remove_admin') }}" 
+        method="post" 
+        style="width: 60%; margin: 0 auto">
+        
+        <label for="admin">Email:</label>
+        <input id="admin" type="text" name="admin">
+
+        <button type='submit'>Remove</button>
+
+
+    </form>
+
+{% endblock %}
