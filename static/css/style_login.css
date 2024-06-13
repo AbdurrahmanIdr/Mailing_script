@@ -1,0 +1,84 @@
+body{
+    background-color: #009933;
+}
+.gen{
+    display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 6vw;
+}
+.img{
+    display: flex;
+    align-self: center;
+}
+.img img{
+    width: 277px;
+    height: 277px;
+}
+.inputGroup {
+    margin-bottom: 15px;
+    position: relative;
+  }
+  
+  .inputGroup input {
+    color: #fff;
+    font-size: large;
+    height: 50px;
+    width: 378px;
+    border-radius: 10px;
+    border: 1px solid white;
+    margin-top: 10px;
+    outline: none;
+    appearance: none;
+    background-color: transparent;
+    text-align: center;
+  }
+  
+  .inputGroup :focus::placeholder {
+    color: transparent;
+    padding: 10px
+  }
+  
+  .inputGroup input::placeholder {
+    text-align: center;
+    color: #fff;
+    font-size: 12px;
+    text-transform: uppercase;
+    border: 0;
+    transition: color 0.5s ease;
+    -webkit-transition: color 0.5s ease;
+    -moz-transition: color 0.5s ease;
+    -ms-transition: color 0.5s ease;
+    -o-transition: color 0.5s ease;
+  }
+  
+  .inputGroup span {
+    position: absolute;
+  }
+  
+  .icon {
+    margin: 22px;
+    pointer-events: none;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  
+  .btn {
+    height: 50px;
+    width: 378px;
+    background-color: #fff;
+    color: black;
+    border-radius: 10px;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+    border: 0;
+    cursor: pointer;
+    margin-top: 15px;
+    font-size: 20px;
+    text-transform: uppercase;
+  }
+  
