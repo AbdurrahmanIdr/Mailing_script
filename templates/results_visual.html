@@ -1,125 +1,132 @@
 {% extends 'base.html' %}
+
+{% block script %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='scripts/chart.js') }}"></script>
+{% endblock %}
+
 {% block body %}
-    <h1>Email Sending Progress for Folder: {{ filename }}</h1>
-    <div class="canvas-container">
-        <canvas id="progressChart"></canvas>
-    </div>
-    <p id="status">Starting...</p>
+  <h1>Email Sending Progress for Folder: {{ filename }}</h1>
+  <div class="canvas-container">
+    <canvas id="progressChart"></canvas>
+  </div>
+  <p id="status">Starting...</p>
 
-    <form id="cancelForm" action="/cancel_task/" method="post" style="display:inline;">
-        <input type="hidden" name="task_id" value="{{ task_id }}">
-        <input type="hidden" name="filename" value="{{ filename }}">
-        <input type="hidden" name="folder" value="{{ folder }}">
-        <button type="submit">Cancel Sending Emails</button>
+  <form id="cancelForm" action="/cancel_task/" method="post" style="display:inline;">
+    <input type="hidden" name="task_id" value="{{ task_id }}" />
+    <input type="hidden" name="filename" value="{{ filename }}" />
+    <input type="hidden" name="folder" value="{{ folder }}" />
+    <button type="submit">Cancel Sending Emails</button>
+  </form>
+
+  <div id="log">
+    <h2>Log</h2>
+    <ul id="log-list"></ul>
+  </div>
+  <div id="actions">
+    <form action="/export_logs/" method="post">
+      <input type="hidden" name="task_id" value="{{ task_id }}" />
+      <button type="submit">Export Logs and Errors</button>
     </form>
+  </div>
 
-    <div id="log">
-        <h2>Log</h2>
-        <ul id="log-list"></ul>
-    </div>
-    <div id="actions">
-        <form action="/export_logs/" method="post">
-            <input type="hidden" name="task_id" value="{{ task_id }}">
-            <button type="submit">Export Logs and Errors</button>
-        </form>
-    </div>
-
-    <script>
-        const task_id = "{{ task_id }}";
-
-        // Initialize the chart
-        const ctx = document.getElementById('progressChart').getContext('2d');
-        const progressChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Sent', 'Failed', 'Pending'],
-                datasets: [{
-                    data: [0, 0, 100],
-                    backgroundColor: ['#4caf50', '#f44336', '#f3f3f3']
-                }]
-            },
-            options: {
-                cutout: '50%',
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-
-        function updateProgress() {
-            fetch('/progress_mail/' + task_id)
-                .then(response => response.json())
-                .then(data => {
-                    const total = data.total;
-                    const sent = data.sent;
-                    const failed = data.failed;
-                    const pending = total - sent - failed;
-
-                    progressChart.data.datasets[0].data = [sent, failed, pending];
-                    progressChart.update();
-
-                    const status = document.getElementById('status');
-                    const logList = document.getElementById('log-list');
-
-                    if (sent + failed < total) {
-                        status.textContent = `Sent: ${sent}, Failed: ${failed}, Total: ${total}`;
-                    } else {
-                        status.textContent = `Completed! Sent: ${sent}, Failed: ${failed}, Total: ${total}`;
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = '/retry_page/';
-
-                        const folder_in = document.createElement('input');
-                        folder_in.type = 'hidden';
-                        folder_in.name = 'folder';
-                        folder_in.value = '{{ folder }}';
-
-                        const task_id_in = document.createElement('input');
-                        task_id_in.type = 'hidden';
-                        task_id_in.name = 'task_id';
-                        task_id_in.value = '{{ task_id }}';
-
-                        const file_name = document.createElement('input');
-                        file_name.type = 'hidden';
-                        file_name.name = 'filename';
-                        file_name.value = '{{ filename }}';
-
-                        form.appendChild(folder_in);
-                        form.appendChild(task_id_in);
-                        form.appendChild(file_name);
-                        document.body.appendChild(form);
-                        form.submit();
-                    }
-
-                    logList.innerHTML = '';
-                    data.logs.forEach(log => {
-                        const li = document.createElement('li');
-                        li.textContent = log.message;
-                        logList.insertBefore(li, logList.firstChild);
-                    });
-                });
+  <script>
+    const task_id = '{{ task_id }}'
+    
+    // Initialize the chart
+    const ctx = document.getElementById('progressChart').getContext('2d')
+    const progressChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Sent', 'Failed', 'Pending'],
+        datasets: [
+          {
+            data: [0, 0, 100],
+            backgroundColor: ['#4caf50', '#f44336', '#f3f3f3']
+          }
+        ]
+      },
+      options: {
+        cutout: '50%',
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom'
+          }
         }
-
-        document.getElementById('cancelForm').addEventListener('submit', function (event) {
-            event.preventDefault();
-            const formData = new FormData(this);
-
-            fetch(this.action, {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.redirect) {
-                        window.location.href = data.redirect;
-                    }
-                });
-        });
-
-        setInterval(updateProgress, 3000);
-    </script>
-
+      }
+    })
+    
+    function updateProgress() {
+      fetch('/progress_mail/' + task_id)
+        .then((response) => response.json())
+        .then((data) => {
+          const total = data.total
+          const sent = data.sent
+          const failed = data.failed
+          const pending = total - sent - failed
+    
+          progressChart.data.datasets[0].data = [sent, failed, pending]
+          progressChart.update()
+    
+          const status = document.getElementById('status')
+          const logList = document.getElementById('log-list')
+    
+          if (sent + failed < total) {
+            status.textContent = `Sent: ${sent}, Failed: ${failed}, Total: ${total}`
+          } else {
+            status.textContent = `Completed! Sent: ${sent}, Failed: ${failed}, Total: ${total}`
+            const form = document.createElement('form')
+            form.method = 'POST'
+            form.action = '/retry_page/'
+    
+            const folder_in = document.createElement('input')
+            folder_in.type = 'hidden'
+            folder_in.name = 'folder'
+            folder_in.value = '{{ folder }}'
+    
+            const task_id_in = document.createElement('input')
+            task_id_in.type = 'hidden'
+            task_id_in.name = 'task_id'
+            task_id_in.value = '{{ task_id }}'
+    
+            const file_name = document.createElement('input')
+            file_name.type = 'hidden'
+            file_name.name = 'filename'
+            file_name.value = '{{ filename }}'
+    
+            form.appendChild(folder_in)
+            form.appendChild(task_id_in)
+            form.appendChild(file_name)
+            document.body.appendChild(form)
+            form.submit()
+          }
+    
+          logList.innerHTML = ''
+          data.logs.forEach((log) => {
+            const li = document.createElement('li')
+            li.textContent = log.message
+            logList.insertBefore(li, logList.firstChild)
+          })
+        })
+    }
+    
+    document.getElementById('cancelForm').addEventListener('submit', function (event) {
+      event.preventDefault()
+      const formData = new FormData(this)
+    
+      fetch(this.action, {
+        method: 'POST',
+        body: formData
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.redirect) {
+            window.location.href = data.redirect
+          }
+        })
+    })
+    
+    setInterval(updateProgress, 3000)
+  </script>
 {% endblock %}
