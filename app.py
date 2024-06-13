@@ -754,7 +754,7 @@ def add_admin():
 def remove_admin():
     if request.method == 'POST':
         try:
-            user = request.form.get('user')
+            user = request.form.get('admin')
 
             user = Admins.query.filter_by(username=user).first()
             if not user:
