@@ -1,26 +1,43 @@
 import csv
 import datetime
+import functools
 import math
 import os
 import shutil as sh
 import time
 import zipfile
-
-from io import BytesIO, StringIO
+from io import (BytesIO,
+                StringIO)
 from pathlib import Path
 from secrets import token_urlsafe
 from threading import Thread
-from urllib.parse import quote, unquote
+from urllib.parse import (quote,
+                          unquote)
 
-from flask import Flask, render_template, url_for, request, redirect, jsonify, session, flash, send_file
+from flask import (Flask,
+                   render_template,
+                   url_for,
+                   request,
+                   redirect,
+                   jsonify,
+                   session,
+                   flash,
+                   send_file)
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import (generate_password_hash,
+                               check_password_hash)
 
-from models.explorer import (get_sorted_files, get_file_info, format_file_size,
-                             datetimeformat, query_string)
-from models.mail_mod import send_email_with_attachment, progress_data
-from models.pdf_rel import splitter, base_dir, progress
+from models.explorer import (get_sorted_files,
+                             get_file_info,
+                             format_file_size,
+                             datetimeformat,
+                             query_string)
+from models.mail_mod import (send_email_with_attachment,
+                             progress_data)
+from models.pdf_rel import (splitter,
+                            base_dir,
+                            progress)
 
 app = Flask(__name__)
 app.secret_key = token_urlsafe(32)
@@ -75,6 +92,7 @@ class Admins(db.Model):
     username = db.Column(db.String(20), unique=True, nullable=False)
     password_hash = db.Column(db.String(20), nullable=False)
 
+    @property
     def password(self):
         raise AttributeError('password is not a readable attribute')
 
@@ -86,12 +104,34 @@ class Admins(db.Model):
         return check_password_hash(self.password_hash, str(password))
 
 
-# db.create_all()
+# def init_migration():
+#     with app.app_context():
+#         if not os.path.exists('migrations'):
+#             os.system('flask db init')
+#         os.system('flask db migrate -m "migrations"')
+#         os.system('flask db upgrade')
 
+
+# init_migration()
 app.jinja_env.filters['format_file_size'] = format_file_size
 app.jinja_env.filters['datetimeformat'] = datetimeformat
 
 
+def login_required(route):
+    with app.app_context():
+        users = [user.username for user in User.query.all()]
+
+    @functools.wraps(route)
+    def wrapper(*args, **kwargs):
+        if 'username' not in session and session.get('username') not in users:
+            flash('User not found in the session or db')
+            redirect(url_for('login'))
+        return route(*args, **kwargs)
+
+    return wrapper
+
+
+@app.route('/')
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -102,55 +142,12 @@ def login():
 
         if user and user.verify_password(password):
             flash(f'{username} login successfully.', 'success')
+            session['username'] = username
             return redirect(url_for('directories'))
 
         flash(f'username or password is incorrect, try again.', 'error')
 
-    return render_template('login.html')
-
-
-@app.route("/add_user/", methods=['GET', 'POST'])
-def add_user():
-    if request.method == 'POST':
-        try:
-            email = request.form.get('email')
-            ippis = request.form.get('ippis')
-            first_name = request.form.get('first_name')
-            surname = request.form.get('surname')
-            phone = request.form.get('phone')
-            active = 'active' in request.form
-
-            new_user = User(email=email, ippis=ippis, first_name=first_name,
-                            surname=surname, phone=phone, active=active)
-            db.session.add(new_user)
-            db.session.commit()
-
-            flash(f'User {email} added successfully.', 'success')
-            return redirect(url_for('directories'))
-        except Exception as e:
-            flash(f'{str(e)}', 'error')
-
-    return render_template('add_user.html')
-
-
-@app.route("/remove_user/", methods=['GET', 'POST'])
-def remove_user():
-    if request.method == 'POST':
-        try:
-            email = request.form.get('email')
-            ippis = request.form.get('ippis')
-
-            user = User.query.filter_by(email=email).first()
-            if user and user.ippis == ippis:
-                db.session.delete(user)
-                db.session.commit()
-
-                flash(f'User {email} removed successfully.', 'success')
-                return redirect(url_for('directories'))
-        except Exception as e:
-            flash(f'{str(e)}', 'error')
-
-    return render_template('remove_user.html')
+    return render_template('login.html', title='Login-Form')
 
 
 @app.route("/upload/", methods=['POST'])
@@ -174,7 +171,7 @@ def upload():
     return redirect(url_for('directories'))
 
 
-@app.route("/")
+@login_required
 @app.route('/directories/<rel_directory>/', methods=['GET', 'POST'])
 def directories(rel_directory=base_dir):
     """
@@ -188,7 +185,8 @@ def directories(rel_directory=base_dir):
        """
     if os.path.isdir(rel_directory):
         files, current_directory = get_sorted_files(rel_directory)
-        return render_template('directories.html', files=files, current_directory=current_directory)
+        return render_template('directories.html', title='Directories',
+                               files=files, current_directory=current_directory)
 
 
 @app.route('/view_file/<path:filepath>/', methods=['GET', 'POST'])
@@ -217,11 +215,16 @@ def view_file(filepath):
         file_path_to_display = str(file_path)
 
         # Render the template with the file path to display
-        return render_template('view_file.html', file_path=file_path.resolve(), file_info=file_info,
+        return render_template('view_file.html',
+                               file_path=file_path.resolve(),
+                               file_info=file_info,
                                file_path_to_display=file_path_to_display)
 
     # Render the template for a regular GET request
-    return render_template('view_file.html', file_path=file_path.resolve(), file_info=file_info)
+    return render_template('view_file.html',
+                           title='View File',
+                           file_path=file_path.resolve(),
+                           file_info=file_info)
 
 
 @app.route('/delete_file_or_directory/', methods=['POST'])
@@ -244,7 +247,8 @@ def delete_file_or_directory():
         except Exception as e:
             flash(f'An error occurred while deleting the file/directory.\n{e}', 'error')
 
-        return redirect(url_for('directories', rel_directory=current_directory))
+        return redirect(url_for('directories',
+                                rel_directory=current_directory))
 
 
 @app.route('/retrieve_selected_path/', methods=['POST'])
@@ -259,12 +263,17 @@ def retrieve_selected_path():
     if os.path.isdir(selected_file):
         files = os.listdir(selected_file)
         if 'success_mail' in files and 'failed_mail' in files:
-            return redirect(url_for('retry_send_mail', folder=selected_file))
+            return redirect(url_for('retry_send_mail',
+                                    folder=selected_file))
 
-        return render_template('query_db.html', folder=selected_file)
+        return render_template('query_db.html',
+                               folder=selected_file,
+                               title='Query DB')
 
     elif os.path.isfile(selected_file):
-        return render_template('split_enc.html', selected_file=selected_file)
+        return render_template('split_enc.html',
+                               selected_file=selected_file,
+                               title='Split Encrypt')
 
 
 @app.route('/split_encrypt/', methods=['POST'])
@@ -280,7 +289,9 @@ def split_encrypt():
         thread = Thread(target=splitter, args=(file, task_id))
         thread.start()
 
-        return render_template('progress.html', task_id=task_id, folder=folder_encoded)
+        return render_template('progress.html',
+                               task_id=task_id,
+                               folder=folder_encoded)
     except Exception as e:
         flash(f'An error occurred while splitting the file.\n{e}', 'error')
         return redirect(url_for('directories'))
@@ -326,7 +337,10 @@ def results():
     session['inactive_count'] = len(inactive)
     session['unknown_count'] = len(unknown)
 
-    return render_template('results.html', active=len(active_found), inactive=len(inactive), unknown=len(unknown),
+    return render_template('results.html',
+                           active=len(active_found),
+                           inactive=len(inactive),
+                           unknown=len(unknown),
                            folder=folder)
 
 
@@ -342,7 +356,9 @@ def view_users(category):
         flash('Category does not exist.', 'error')
         return redirect(url_for('directories'))
 
-    return render_template('view_users.html', category=category, users=users)
+    return render_template('view_users.html',
+                           category=category,
+                           users=users)
 
 
 @app.route('/back_to_result/')
@@ -352,7 +368,10 @@ def back_to_result():
     inactive = session['inactive_count']
     unknown = session['unknown_count']
 
-    return render_template('results.html', active=active, inactive=inactive, unknown=unknown,
+    return render_template('results.html',
+                           active=active,
+                           inactive=inactive,
+                           unknown=unknown,
                            folder=folder)
 
 
@@ -378,8 +397,10 @@ def send_mail():
     thread = Thread(target=send_emails, args=(folder, task_id))
     thread.start()
 
-    return render_template('results_visual.html', task_id=task_id,
-                           folder=folder_encoded, filename=file_name)
+    return render_template('results_visual.html',
+                           task_id=task_id,
+                           folder=folder_encoded,
+                           filename=file_name)
 
 
 def send_emails(folder, task_id):
@@ -438,7 +459,12 @@ def send_emails(folder, task_id):
 
 @app.route('/progress_mail/<task_id>/')
 def progress_mail(task_id):
-    return jsonify(progress_data.get(task_id, {'total': 0, 'sent': 0, 'failed': 0, 'logs': [], 'errors': []}))
+    return jsonify(progress_data.get(task_id,
+                                     {'total': 0,
+                                      'sent': 0,
+                                      'failed': 0,
+                                      'logs': [],
+                                      'errors': []}))
 
 
 @app.route('/retry_page/', methods=['GET', 'POST'])
@@ -446,8 +472,10 @@ def retry_page():
     folder = request.form.get('folder') or request.args.get('folder')
     task_id = request.form.get('task_id') or request.args.get('task_id')
     filename = request.form.get('filename') or request.args.get('filename')
-    return render_template('retry_page.html', task_id=task_id,
-                           folder=folder, filename=filename)
+    return render_template('retry_page.html',
+                           task_id=task_id,
+                           folder=folder,
+                           filename=filename)
 
 
 @app.route('/retry_logs/', methods=['GET'])
@@ -461,7 +489,9 @@ def retry_logs():
     total = len(progress_data[task_id]['logs'])
     out_of = math.ceil(total / per_page)
     out_of = out_of if out_of != 0 else 1
-    return jsonify(logs=logs_paginated, total=total, n_logs=out_of)
+    return jsonify(logs=logs_paginated,
+                   total=total,
+                   n_logs=out_of)
 
 
 @app.route('/retry_errors/', methods=['GET'])
@@ -475,7 +505,9 @@ def retry_errors():
     total = len(progress_data[task_id]['errors'])
     out_of = math.ceil(total / per_page)
     out_of = out_of if out_of != 0 else 1
-    return jsonify(errors=errors_paginated, total=total, n_errors=out_of)
+    return jsonify(errors=errors_paginated,
+                   total=total,
+                   n_errors=out_of)
 
 
 @app.route('/retry_send_mail/', methods=['GET', 'POST'])
@@ -490,7 +522,8 @@ def retry_send_mail():
         return redirect(url_for('directories'))
 
     task_id = str(time.time())  # Generate a unique task ID
-    failed_folder = os.path.join(folder, 'failed_mail')
+    failed_folder = os.path.join(folder,
+                                 'failed_mail')
     file_name = Path(folder).name
 
     progress_data[task_id] = {
@@ -506,11 +539,15 @@ def retry_send_mail():
 
     # Run the email sending function in the background
     # Start a background thread to handle the email sending process
-    thread = Thread(target=retry_send_emails, args=(folder, task_id, failed_folder))
+    thread = Thread(target=retry_send_emails, args=(folder,
+                                                    task_id,
+                                                    failed_folder))
     thread.start()
 
-    return render_template('results_visual.html', task_id=task_id,
-                           folder=quote(folder), filename=file_name)
+    return render_template('results_visual.html',
+                           task_id=task_id,
+                           folder=quote(folder),
+                           filename=file_name)
 
 
 def retry_send_emails(main_folder, task_id, failed_folder):
@@ -533,10 +570,17 @@ def retry_send_emails(main_folder, task_id, failed_folder):
             user_id = file.split('_')[0]
             user = User.query.filter_by(ippis=user_id).first()
             email = user.email
-            full_path = os.path.join(failed_folder, file)
-            matched_path = full_path if os.path.exists(full_path) else os.path.join(main_folder, file)
 
-            mail_att, error_message = send_email_with_attachment(email, user_id, file, matched_path)
+            full_path = os.path.join(failed_folder,
+                                     file)
+
+            matched_path = full_path if os.path.exists(full_path) else os.path.join(main_folder,
+                                                                                    file)
+
+            mail_att, error_message = send_email_with_attachment(email,
+                                                                 user_id,
+                                                                 file,
+                                                                 matched_path)
 
             timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -550,7 +594,9 @@ def retry_send_emails(main_folder, task_id, failed_folder):
             progress_data[task_id]['logs'].append(log_entry)
 
             if mail_att:
-                sh.move(matched_path, os.path.join(main_folder, 'success_mail', file))
+                sh.move(matched_path, os.path.join(main_folder,
+                                                   'success_mail',
+                                                   file))
                 progress_data[task_id]['sent'] += 1
             else:
                 progress_data[task_id]['failed'] += 1
@@ -575,7 +621,10 @@ def cancel_task():
             progress_data[task_id]['cancelled'] = True
             progress_data[task_id]['status'] = 'canceled'
             return jsonify({'status': 'Task canceled',
-                            'redirect': url_for('retry_page', task_id=task_id, folder=folder, filename=filename)})
+                            'redirect': url_for('retry_page',
+                                                task_id=task_id,
+                                                folder=folder,
+                                                filename=filename)})
     except KeyError:
         flash("No task ID provided", 'error')
         return redirect(url_for('directories'))
@@ -593,9 +642,17 @@ def export_logs():
         return output.getvalue()
 
     logs_csv = generate_csv(
-        [{'timestamp': log['timestamp'], 'message': log['message'], 'file': log['file'], 'email': log['email']}
+        [{'timestamp': log['timestamp'],
+          'message': log['message'],
+          'file': log['file'],
+          'email': log['email']}
+
          for log in progress_data[task_id]['logs']],
-        ['timestamp', 'message', 'file', 'email']
+
+        ['timestamp',
+         'message',
+         'file',
+         'email']
     )
     errors_csv = generate_csv(
         [{'timestamp': error['timestamp'], 'file': error['file'], 'email': error['email'], 'error': error['error']}
@@ -618,6 +675,100 @@ def export_logs():
         as_attachment=True,
         download_name=f'logs_and_errors_{timedate}.zip'
     )
+
+
+@app.route("/add_user/", methods=['GET', 'POST'])
+def add_user():
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            ippis = request.form.get('ippis')
+            first_name = request.form.get('first_name')
+            surname = request.form.get('surname')
+            phone = request.form.get('phone')
+            active = 'active' in request.form
+
+            new_user = User(email=email, ippis=ippis, first_name=first_name,
+                            surname=surname, phone=phone, active=active)
+            db.session.add(new_user)
+            db.session.commit()
+
+            flash(f'User {email} added successfully.', 'success')
+            return redirect(url_for('directories'))
+        except Exception as e:
+            flash(f'{str(e)}', 'error')
+
+    return render_template('add_user.html', title='Add User')
+
+
+@app.route("/remove_user/", methods=['GET', 'POST'])
+def remove_user():
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            ippis = request.form.get('ippis')
+
+            user = User.query.filter_by(email=email).first()
+            if not user and user.ippis != ippis:
+                raise AssertionError(f'User {email} not found.')
+
+            db.session.delete(user)
+            db.session.commit()
+
+            flash(f'User {email} removed successfully.', 'success')
+            return redirect(url_for('directories'))
+        except Exception as e:
+            flash(f'{str(e)}', 'error')
+
+    return render_template('remove_user.html', title='Remove User')
+
+
+@app.route("/add_admin/", methods=['GET', 'POST'])
+def add_admin():
+    if request.method == 'POST':
+        try:
+            user = request.form.get('name')
+            password = request.form.get('passwd')
+            confirm_password = request.form.get('confirm')
+
+            if password != confirm_password:
+                flash('Passwords do not match', 'error')
+                raise AssertionError('Passwords do not match')
+
+            new_user = Admins()
+            new_user.username = user
+            new_user.password(password)
+
+            db.session.add(new_user)
+            db.session.commit()
+
+            flash(f'Admin {new_user} added successfully.', 'success')
+            return redirect(url_for('directories'))
+        except Exception as e:
+            flash(f'{str(e)}', 'error')
+
+    return render_template('add_admin.html', title='Add Admin')
+
+
+@app.route("/remove_admin/", methods=['GET', 'POST'])
+def remove_admin():
+    if request.method == 'POST':
+        try:
+            user = request.form.get('user')
+
+            user = Admins.query.filter_by(username=user).first()
+            if not user:
+                raise AssertionError('User not found')
+
+            db.session.delete(user)
+            db.session.commit()
+
+            flash(f'Admin {user} removed successfully.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            flash(f'{str(e)}', 'error')
+
+    return render_template('remove_admin.html', title='Remove Admin')
 
 
 if __name__ == '__main__':
