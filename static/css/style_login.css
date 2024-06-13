@@ -45,11 +45,11 @@ body{
     font-size: 12px;
     text-transform: uppercase;
     border: 0;
-    transition: color 0.5s ease;
     -webkit-transition: color 0.5s ease;
     -moz-transition: color 0.5s ease;
     -ms-transition: color 0.5s ease;
-    -o-transition: color 0.5s ease;
+    -o-transition: color 0.5s ease;    
+    transition: color 0.5s ease;
   }
   
   .inputGroup span {
@@ -70,11 +70,11 @@ body{
     width: 378px;
     background-color: #fff;
     color: black;
-    border-radius: 10px;
     -webkit-border-radius: 10px;
     -moz-border-radius: 10px;
     -ms-border-radius: 10px;
-    -o-border-radius: 10px;
+    -o-border-radius: 10px;    
+    border-radius: 10px;
     border: 0;
     cursor: pointer;
     margin-top: 15px;
