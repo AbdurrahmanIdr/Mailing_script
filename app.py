@@ -737,7 +737,7 @@ def add_admin():
 
             new_user = Admins()
             new_user.username = user
-            new_user.password(password)
+            new_user.password = password
 
             db.session.add(new_user)
             db.session.commit()
