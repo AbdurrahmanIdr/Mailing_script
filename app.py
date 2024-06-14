@@ -102,42 +102,21 @@ class Admins(db.Model):
         return check_password_hash(self.password_hash, str(password))
 
 
-# def init_migration():
-#     with app.app_context():
-#         if not os.path.exists('migrations'):
-#             os.system('flask db init')
-#         os.system('flask db migrate -m "migrations"')
-#         os.system('flask db upgrade')
-
-
 # init_migration()
 app.jinja_env.filters["format_file_size"] = format_file_size
 app.jinja_env.filters["datetimeformat"] = datetimeformat
 
 
 def login_required(route):
-    """
-    The `login_required` function is a decorator in Python that checks if a
-    user is logged in before allowing access to a route.
-
-    :param route: The `route` parameter in the `login_required` function is a
-    function that represents a route in a web application. This function is a
-    decorator that checks if a user is logged in before allowing access to the
-    specified route. If the user is not logged in or not found in the database.
-
-    :return: The `login_required` function is returning the `wrapper` function,
-    which is a decorator function that checks if a user is logged in based on
-    the session and database information before allowing access to the
-    decorated route.
-    """
-    with app.app_context():
-        users = [user.username for user in User.query.all()]
-
     @functools.wraps(route)
     def wrapper(*args, **kwargs):
-        if "username" not in session and session.get("username") not in users:
-            flash("User not found in the session or db")
-            redirect(url_for("login"))
+        if "username" not in session:
+            flash("You need to be logged in to view this page.", 'error')
+            return redirect(url_for("login"))
+        user = Admins.query.filter_by(username=session["username"]).first()
+        if not user:
+            flash("User not found. Please log in again.", 'error')
+            return redirect(url_for("login"))
         return route(*args, **kwargs)
 
     return wrapper
@@ -149,29 +128,34 @@ def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-
         user = Admins.query.filter_by(username=username).first()
-
         if user and user.verify_password(password):
-            flash(f"{username} login successfully.", "success")
+            flash(f"{username} logged in successfully.", "success")
             session["username"] = username
-            return redirect(url_for("directories"))
-
-        flash("username or password is incorrect, try again.", "error")
-
+            return redirect(url_for("directories", rel_directory=base_dir))
+        else:
+            flash("Username or password is incorrect, try again.", "error")
     return render_template("login.html", title="Login-Form")
 
 
+@app.route("/logout/", methods=['POST'])
+def logout():
+    session.pop('username', None)  # Remove username from session
+    flash('Logged out successfully!', 'success')
+    return redirect(url_for('login'))
+
+
 @app.route("/upload/", methods=["POST"])
+@login_required
 def upload():
     """
-    Upload a file to the directory. If the file exists it will be overwritten.  
-    @return redirect to the directories page with the file uploaded or
+    Upload a file to the directory. If the file exists it will be overwritten.
+    @return redirect to the directories page with the file uploaded.
     """
     file = request.files.get("file")
     filename = str(file.filename)
 
-    # Create a directory if it doesn t exist.
+    # Create the base directory if it doesn t exist.
     if not os.path.exists(base_dir):
         os.makedirs(base_dir)
 
@@ -187,21 +171,14 @@ def upload():
     else:
         flash(f"{file.filename} failed to upload check the file type != PDF", "error")
 
-    return redirect(url_for("directories"))
+    return redirect(url_for("directories", rel_directory=base_dir))
 
 
+@app.route("/directories/<path:rel_directory>/", methods=["GET", "POST"])
 @login_required
-@app.route("/directories/<rel_directory>/", methods=["GET", "POST"])
-def directories(rel_directory=base_dir):
-    """
-    Render the home page or directory listing page.
-
-    Args:
-        rel_directory (str): Relative path of the directory.
-
-    Returns:
-        render_template: Rendered HTML template.
-    """
+def directories(rel_directory=None):
+    if not rel_directory or rel_directory == "base_dir":
+        rel_directory = base_dir
     if os.path.isdir(rel_directory):
         files, current_directory = get_sorted_files(rel_directory)
         return render_template(
@@ -210,9 +187,11 @@ def directories(rel_directory=base_dir):
             files=files,
             current_directory=current_directory,
         )
+    return "Directory not found", 404
 
 
 @app.route("/view_file/<path:filepath>/", methods=["GET", "POST"])
+@login_required
 def view_file(filepath):
     """
     Render the page for viewing file metadata.
@@ -255,13 +234,14 @@ def view_file(filepath):
 
 
 @app.route("/delete_file_or_directory/", methods=["POST"])
+@login_required
 def delete_file_or_directory():
     """
-        Delete a file or directory. This is a form to delete a file 
-        or directory.
-                
-        Returns:
-            Redirect to the directories page if request method is POST
+    Delete a file or directory. This is a form to delete a file
+    or directory.
+
+    Returns:
+        Redirect to the directories page if request method is POST
     """
     # This is a POST request.
     if request.method == "POST":
@@ -283,14 +263,13 @@ def delete_file_or_directory():
                 flash("File or directory does not exist.", "error")
         except Exception as e:
             flash(
-                f"An error occurred while deleting the file/directory.\n{e}",
-                "error")
+                f"An error occurred while deleting the file/directory.\n{e}", "error")
 
-        return redirect(url_for("directories",
-                                rel_directory=current_directory))
+        return redirect(url_for("directories", rel_directory=current_directory))
 
 
 @app.route("/retrieve_selected_path/", methods=["POST"])
+@login_required
 def retrieve_selected_path():
     """
     Render the page with retrieved selected file paths.
@@ -313,6 +292,7 @@ def retrieve_selected_path():
 
 
 @app.route("/split_encrypt/", methods=["POST"])
+@login_required
 def split_encrypt():
     try:
         file = request.form.get("file")
@@ -328,7 +308,7 @@ def split_encrypt():
         return render_template("progress.html", task_id=task_id, folder=folder_encoded)
     except Exception as e:
         flash(f"An error occurred while splitting the file.\n{e}", "error")
-        return redirect(url_for("directories"))
+        return redirect(url_for("directories", rel_directory=base_dir))
 
 
 @app.route("/progress/<task_id>")
@@ -337,6 +317,7 @@ def progress_status(task_id):
 
 
 @app.route("/query_db/", methods=["POST"])
+@login_required
 def query_db():
     folder = request.form["folder"]
     if not folder:
@@ -347,6 +328,7 @@ def query_db():
 
 
 @app.route("/results/", methods=["POST"])
+@login_required
 def results():
     folder_encoded = request.form.get("folder")
     if not folder_encoded:
@@ -387,6 +369,7 @@ def results():
 
 
 @app.route("/view_users/<category>/", methods=["GET", "POST"])
+@login_required
 def view_users(category):
     if category == "active":
         users = ActiveUser.query.all()
@@ -396,7 +379,7 @@ def view_users(category):
         users = UnknownUser.query.all()
     else:
         flash("Category does not exist.", "error")
-        return redirect(url_for("directories"))
+        return redirect(url_for("directories", rel_directory=base_dir))
 
     return render_template("view_users.html", category=category, users=users)
 
@@ -414,6 +397,7 @@ def back_to_result():
 
 
 @app.route("/send_mail/", methods=["POST"])
+@login_required
 def send_mail():
     folder = request.form.get("folder")
     task_id = str(time.time())  # Generate a unique task ID
@@ -554,6 +538,7 @@ def retry_errors():
 
 
 @app.route("/retry_send_mail/", methods=["GET", "POST"])
+@login_required
 def retry_send_mail():
     if request.method == "POST":
         folder = unquote(request.form["folder"])
@@ -562,7 +547,7 @@ def retry_send_mail():
 
     if not folder:
         flash("No folder provided for retry_send_mail", "error")
-        return redirect(url_for("directories"))
+        return redirect(url_for("directories", rel_directory=base_dir))
 
     task_id = str(time.time())  # Generate a unique task ID
     failed_folder = os.path.join(folder, "failed_mail")
@@ -634,7 +619,7 @@ def retry_send_emails(main_folder, task_id, failed_folder):
                 "message": (
                     error_message
                     if mail_att
-                    else f"Email notification failed to {email} for user ID {user_id}."
+                    else f"Email notification failed to {email}."
                 ),
                 "file": file,
                 "email": email,
@@ -673,13 +658,16 @@ def cancel_task():
                 {
                     "status": "Task canceled",
                     "redirect": url_for(
-                        "retry_page", task_id=task_id, folder=folder, filename=filename
+                        "retry_page",
+                        task_id=task_id,
+                        folder=folder,
+                        filename=filename
                     ),
                 }
             )
     except KeyError:
         flash("No task ID provided", "error")
-        return redirect(url_for("directories"))
+        return redirect(url_for("directories", rel_directory=base_dir))
 
 
 @app.route("/export_logs/", methods=["POST", "GET"])
@@ -736,6 +724,7 @@ def export_logs():
 
 
 @app.route("/add_user/", methods=["GET", "POST"])
+@login_required
 def add_user():
     if request.method == "POST":
         try:
@@ -758,7 +747,7 @@ def add_user():
             db.session.commit()
 
             flash(f"User {email} added successfully.", "success")
-            return redirect(url_for("directories"))
+            return redirect(url_for("directories", rel_directory=base_dir))
         except Exception as e:
             flash(f"{str(e)}", "error")
 
@@ -766,6 +755,7 @@ def add_user():
 
 
 @app.route("/remove_user/", methods=["GET", "POST"])
+@login_required
 def remove_user():
     if request.method == "POST":
         try:
@@ -780,7 +770,7 @@ def remove_user():
             db.session.commit()
 
             flash(f"User {email} removed successfully.", "success")
-            return redirect(url_for("directories"))
+            return redirect(url_for("directories", rel_directory=base_dir))
         except Exception as e:
             flash(f"{str(e)}", "error")
 
@@ -788,6 +778,7 @@ def remove_user():
 
 
 @app.route("/add_admin/", methods=["GET", "POST"])
+@login_required
 def add_admin():
     if request.method == "POST":
         try:
@@ -807,7 +798,7 @@ def add_admin():
             db.session.commit()
 
             flash(f"Admin {new_user} added successfully.", "success")
-            return redirect(url_for("directories"))
+            return redirect(url_for("directories", rel_directory=base_dir))
         except Exception as e:
             flash(f"{str(e)}", "error")
 
@@ -815,6 +806,7 @@ def add_admin():
 
 
 @app.route("/remove_admin/", methods=["GET", "POST"])
+@login_required
 def remove_admin():
     if request.method == "POST":
         try:
