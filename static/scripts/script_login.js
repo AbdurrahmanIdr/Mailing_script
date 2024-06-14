@@ -19,11 +19,4 @@ document.addEventListener("DOMContentLoaded", () => {
   passwordInput.addEventListener("focus", () => handleFocus(passwordIcon));
   passwordInput.addEventListener("blur", () => handleBlur(passwordIcon));
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const username = usernameInput.value;
-    const password = passwordInput.value;
-    console.log({ username, password });
-    // Add your form submission logic here
-  });
 });
