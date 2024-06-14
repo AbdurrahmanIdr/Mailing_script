@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% block body %}
+<div class="form-columns">
     <h2>Add a New User</h2>
-    <form method="post" action="{{ url_for('add_user') }}" style="width: 60%; margin: 0 auto">
+    <form method="post" action="{{ url_for('add_user') }}">
 
         <label for="email" >Email:</label>
         <input type="text" name="email" id="email" required> <br>
@@ -12,7 +13,7 @@
         <label for="first_name">First Name:</label>
         <input type="text" name="first_name" id="first_name" required>
 
-        <label for="surname">First Name:</label>
+        <label for="surname">Surame:</label>
         <input type="text" name="surname" id="surname" required>
 
         <label for="phone">Phone:</label>
@@ -23,4 +24,5 @@
 
         <button type="submit">Add User</button>
     </form>
+</div>
 {% endblock %}
