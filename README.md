@@ -78,6 +78,9 @@ This Flask application offers a comprehensive and user-friendly solution for man
 
 5. **Configure Email Settings:**
 
+    ```bash
+      nano config.ini
+      ```
    - Update the `config.ini` file with your email server details:
 
      ```ini
