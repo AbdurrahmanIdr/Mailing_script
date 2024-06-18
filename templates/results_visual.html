@@ -16,7 +16,7 @@
     <input type="hidden" name="task_id" value="{{ task_id }}" />
     <input type="hidden" name="filename" value="{{ filename }}" />
     <input type="hidden" name="folder" value="{{ folder }}" />
-    <button type="submit">Cancel Sending Emails</button>
+    <button class="btn btn-danger" type="submit">Cancel Sending Emails</button>
   </form>
 
   <div id="log">
@@ -26,7 +26,7 @@
   <div id="actions">
     <form action="/export_logs/" method="post">
       <input type="hidden" name="task_id" value="{{ task_id }}" />
-      <button type="submit">Export Logs and Errors</button>
+      <button class="btn btn-primary" type="submit">Export Logs and Errors</button>
     </form>
   </div>
 

@@ -24,7 +24,7 @@
         <!-- Form to submit and retrieve the file path -->
         <form action="{{ url_for('retrieve_selected_path') }}" method="post">
             <input type="hidden" name="selected_file" value="{{ file_path }}">
-            <button id="file-path-btn" type="submit">Select Path</button>
+            <button class="btn btn-primary" id="file-path-btn" type="submit">Select Path</button>
         </form>
     </div>
 </div>

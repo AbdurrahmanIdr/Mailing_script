@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 {% block body %}
-
-    <form action="{{ url_for('split_encrypt') }}" method="post" class="form_btn">
+<div class="form_btn">
+    <form action="{{ url_for('split_encrypt') }}" method="post">
         <input type="hidden" name="file" value="{{ selected_file }}">
-        <button type="submit">Split & Encrypt</button>
+        <button class="btn btn-warning" type="submit">Split &and; Encrypt</button>
     </form>
+</div>
 
 {% endblock %}
