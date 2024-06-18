@@ -184,7 +184,7 @@ We welcome contributions to this project! Please submit a pull request or open a
 
 ## License
 
-This project is licensed under the terms of the [ALMEIDA License](LICENCE).
+This project is licensed under the terms of the [MIT License](LICENCE).
 
 ## Contact
 
