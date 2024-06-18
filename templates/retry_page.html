@@ -1,145 +1,167 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %} {% block body %}
+<h1>Email Sending Process Completed</h1>
+<p>All emails have been processed for folder: {{ filename }}</p>
 
-{% block body %}
-    <h1>Email Sending Process Completed</h1>
-    <p>All emails have been processed for folder: {{ filename }}</p>
+<h2>Logs Details</h2>
+<table id="failed-emails-table">
+  <thead>
+    <tr>
+      <th>Timestamp</th>
+      <th>Email</th>
+      <th>File</th>
+      <th>Message</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Failed emails will be populated here dynamically -->
+  </tbody>
+</table>
 
-    <h2>Logs Details</h2>
-    <table id="failed-emails-table">
-        <thead>
-        <tr>
-            <th>Timestamp</th>
-            <th>Email</th>
-            <th>File</th>
-            <th>Message</th>
-        </tr>
-        </thead>
-        <tbody>
-        <!-- Failed emails will be populated here dynamically -->
-        </tbody>
-    </table>
+<div id="pagination-controls-logs">
+  <div class="retry-btn">
+    <button class="btn btn-primary" onclick="prevPage('logs')">Previous Logs</button>
+    <button class="btn btn-primary" onclick="nextPage('logs')">Next Logs</button>
+  </div>
+  <p id="logs-page-info"></p>
+</div>
 
-    <div id="pagination-controls-logs">
-        <button onclick="prevPage('logs')">Previous Logs</button>
-        <button onclick="nextPage('logs')">Next Logs</button>
-        <p id="logs-page-info"></p>
-    </div>
+<h2>Error Details</h2>
+<table id="error-details-table">
+  <thead>
+    <tr>
+      <th>Timestamp</th>
+      <th>Email</th>
+      <th>File</th>
+      <th>Error</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Error details will be populated here dynamically -->
+  </tbody>
+</table>
 
-    <h2>Error Details</h2>
-    <table id="error-details-table">
-        <thead>
-        <tr>
-            <th>Timestamp</th>
-            <th>Email</th>
-            <th>File</th>
-            <th>Error</th>
-        </tr>
-        </thead>
-        <tbody>
-        <!-- Error details will be populated here dynamically -->
-        </tbody>
-    </table>
+<div id="pagination-controls-errors">
+  <div class="retry-btn">
+    <button class="btn btn-primary" onclick="prevPage('errors')">
+      Previous Errors
+    </button>
+    <button class="btn btn-primary" onclick="nextPage('errors')">
+      Next Errors
+    </button>
+  </div>
+  <p id="errors-page-info"></p>
+</div>
 
-    <div id="pagination-controls-errors">
-        <button onclick="prevPage('errors')">Previous Errors</button>
-        <button onclick="nextPage('errors')">Next Errors</button>
-        <p id="errors-page-info"></p>
-    </div>
+<h2>What do you want to do next?</h2>
+<form action="/retry_send_mail" method="post">
+  <input type="hidden" name="folder" value="{{ folder }}" />
+  <button class="btn btn-primary" type="submit">
+    Retry Sending Failed Emails
+  </button>
+</form>
+<div id="actions">
+  <form action="/export_logs/" method="post">
+    <input type="hidden" name="task_id" value="{{ task_id }}" />
+    <button class="btn btn-warning" type="submit">
+      Export Logs and Errors
+    </button>
+  </form>
+</div>
 
-    <h2>What do you want to do next?</h2>
-    <form action="/retry_send_mail" method="post">
-        <input type="hidden" name="folder" value="{{ folder }}">
-        <button type="submit">Retry Sending Failed Emails</button>
-    </form>
-    <div id="actions">
-        <form action="/export_logs/" method="post">
-            <input type="hidden" name="task_id" value="{{ task_id }}">
-            <button type="submit">Export Logs and Errors</button>
-        </form>
-    </div>
+<script>
+  let logsPage = 1;
+  let errorsPage = 1;
+  const task_id = "{{ task_id }}";
 
-    <script>
-        let logsPage = 1;
-        let errorsPage = 1;
-        const task_id = "{{ task_id }}";
-
-        function loadLogs(page) {
-            fetch(`/retry_logs/?task_id=${task_id}&page=${page}`)
-                .then(response => response.json())
-                .then(data => {
-                    const logsTableBody = document.getElementById('failed-emails-table').querySelector('tbody');
-                    logsTableBody.innerHTML = '';
-                    data.logs.forEach(log => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
+  function loadLogs(page) {
+    fetch(`/retry_logs/?task_id=${task_id}&page=${page}`)
+      .then((response) => response.json())
+      .then((data) => {
+        const logsTableBody = document
+          .getElementById("failed-emails-table")
+          .querySelector("tbody");
+        logsTableBody.innerHTML = "";
+        data.logs.forEach((log) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
                             <td>${log.timestamp}</td>
                             <td>${log.email}</td>
                             <td>${log.file}</td>
                             <td>${log.message}</td>
                         `;
-                        logsTableBody.appendChild(tr);
-                    });
-                    document.getElementById('logs-page-info').textContent = `Page ${page} of ${data.n_logs}`;
-                    document.querySelector("#pagination-controls-logs button[onclick='nextPage(\"logs\")']").disabled = page >= data.n_logs;
-                });
-        }
+          logsTableBody.appendChild(tr);
+        });
+        document.getElementById(
+          "logs-page-info"
+        ).textContent = `Page ${page} of ${data.n_logs}`;
+        document.querySelector(
+          "#pagination-controls-logs button[onclick='nextPage(\"logs\")']"
+        ).disabled = page >= data.n_logs;
+      });
+  }
 
-        function loadErrors(page) {
-            fetch(`/retry_errors/?task_id=${task_id}&page=${page}`)
-                .then(response => response.json())
-                .then(data => {
-                    const errorsTableBody = document.getElementById('error-details-table').querySelector('tbody');
-                    errorsTableBody.innerHTML = '';
-                    data.errors.forEach(error => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
+  function loadErrors(page) {
+    fetch(`/retry_errors/?task_id=${task_id}&page=${page}`)
+      .then((response) => response.json())
+      .then((data) => {
+        const errorsTableBody = document
+          .getElementById("error-details-table")
+          .querySelector("tbody");
+        errorsTableBody.innerHTML = "";
+        data.errors.forEach((error) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
                             <td>${error.timestamp}</td>
                             <td>${error.email}</td>
                             <td>${error.file}</td>
                             <td>${error.error}</td>
                         `;
-                        errorsTableBody.appendChild(tr);
-                    });
-                    document.getElementById('errors-page-info').textContent = `Page ${page} of ${data.n_errors}`;
-                    document.querySelector("#pagination-controls-errors button[onclick='nextPage(\"errors\")']").disabled = page >= data.n_errors;
-                });
-        }
-
-        function nextPage(type) {
-            if (type === 'logs') {
-                fetch(`/retry_logs/?task_id=${task_id}&page=${logsPage}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (logsPage < data.n_logs) {
-                            logsPage++;
-                            loadLogs(logsPage);
-                        }
-                    });
-            } else if (type === 'errors') {
-                fetch(`/retry_errors/?task_id=${task_id}&page=${errorsPage}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (errorsPage < data.n_errors) {
-                            errorsPage++;
-                            loadErrors(errorsPage);
-                        }
-                    });
-            }
-        }
-
-        function prevPage(type) {
-            if (type === 'logs' && logsPage > 1) {
-                logsPage--;
-                loadLogs(logsPage);
-            } else if (type === 'errors' && errorsPage > 1) {
-                errorsPage--;
-                loadErrors(errorsPage);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadLogs(logsPage);
-            loadErrors(errorsPage);
+          errorsTableBody.appendChild(tr);
         });
-    </script>
+        document.getElementById(
+          "errors-page-info"
+        ).textContent = `Page ${page} of ${data.n_errors}`;
+        document.querySelector(
+          "#pagination-controls-errors button[onclick='nextPage(\"errors\")']"
+        ).disabled = page >= data.n_errors;
+      });
+  }
+
+  function nextPage(type) {
+    if (type === "logs") {
+      fetch(`/retry_logs/?task_id=${task_id}&page=${logsPage}`)
+        .then((response) => response.json())
+        .then((data) => {
+          if (logsPage < data.n_logs) {
+            logsPage++;
+            loadLogs(logsPage);
+          }
+        });
+    } else if (type === "errors") {
+      fetch(`/retry_errors/?task_id=${task_id}&page=${errorsPage}`)
+        .then((response) => response.json())
+        .then((data) => {
+          if (errorsPage < data.n_errors) {
+            errorsPage++;
+            loadErrors(errorsPage);
+          }
+        });
+    }
+  }
+
+  function prevPage(type) {
+    if (type === "logs" && logsPage > 1) {
+      logsPage--;
+      loadLogs(logsPage);
+    } else if (type === "errors" && errorsPage > 1) {
+      errorsPage--;
+      loadErrors(errorsPage);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadLogs(logsPage);
+    loadErrors(errorsPage);
+  });
+</script>
 {% endblock %}
