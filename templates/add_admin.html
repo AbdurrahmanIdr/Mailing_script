@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block body %}
-    <h2>Add a New Administrator</h2>
+    <h2><a href="{{ url_for('manage_admins') }}">Add a New Administrator</a></h2>
     <form method="post" action="{{ url_for('add_admin') }}" style="width: 60%; margin: 0 auto">
 
         <label for="name">Administrator Name:</label>
@@ -12,6 +12,6 @@
         <label for="confirm">Confirm Password:</label>
         <input type="password" name="confirm" id="confirm" required><br>
 
-        <button type="submit">Add User</button>
+        <button class="btn btn-warning" type="submit">Add User</button>
     </form>
 {% endblock %}
