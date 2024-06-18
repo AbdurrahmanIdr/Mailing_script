@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block body %}
 <div class="form-columns">
-    <h2>Add a New User</h2>
+    <h2><a href="{{ url_for('manage_users') }}">Add a New User</a></h2>
     <form method="post" action="{{ url_for('add_user') }}">
 
         <label for="email" >Email:</label>
@@ -22,7 +22,7 @@
         <label for="active" style="display: inline">Active:</label>
         <input type="checkbox" name="active" id="active">
 
-        <button type="submit">Add User</button>
+        <button class="btn btn-primary" type="submit">Add User</button>
     </form>
 </div>
 {% endblock %}
