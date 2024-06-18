@@ -14,7 +14,7 @@ progress_data = dict()
 
 
 # Function to read configuration from config file
-def read_config(filename='config2.ini'):
+def read_config(filename='config.ini'):
     configure = configparser.ConfigParser()
     configure.read(filename)
     return configure

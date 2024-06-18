@@ -100,7 +100,6 @@ def get_sorted_files(directory):
     return sorted(list(seen_dirs)) + sorted(list(seen_files)), directory
 
 
-
 def get_file_info(file_path):
     """
         Get information about a file.
@@ -128,6 +127,22 @@ def get_file_info(file_path):
 
 
 def query_string(folder, db_found):
+    """Analyzes a folder of PDF filenames and a database of users.
+
+    - Extracts user IDs from filenames in a specified folder (`folder`).
+    - Extracts user IDs (IPPIS) from a database query result (`db_found`).
+    - Identifies three sets of users:
+        - `active_found`: Users found in both PDF filenames and the database (active users).
+        - `inactive`: Users found in PDF filenames but not in the database (inactive users).
+        - `unknown`: Users found in the database but not in PDF filenames (unknown users).
+
+    Args:
+        folder (str): The path to the folder containing PDF files.
+        db_found (list): A list of database objects representing users (assumed to have an 'ippis' attribute).
+
+    Returns:
+        tuple: A tuple containing three sets: `active_found`, `inactive`, and `unknown`.
+    """
     split_files = [f.split('_')[0] for f in os.listdir(folder) if f.endswith('.pdf')]
     db_ippis = [user.ippis for user in db_found]
 

@@ -49,6 +49,19 @@ migrate = Migrate(app, db)
 
 
 class User(db.Model):
+    """
+    This class defines the User model with attributes for user information and activity status.
+
+    Attributes:
+        id (int): Primary key for the user, auto-increments.
+        ippis (str): IPPIS number of the user (unique, not null).
+        email (str): Email address of the user (unique, not null).
+        first_name (str): User's first name (nullable).
+        surname (str): User's surname (nullable).
+        phone (str): User's phone number (nullable).
+        active (bool): Flag indicating if the user is active (default: False).
+    """
+       
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     ippis = db.Column(db.String(20), unique=True, nullable=False)
@@ -59,6 +72,18 @@ class User(db.Model):
     active = db.Column(db.Boolean, default=False)
 
     def __init__(self, email, ippis, first_name, surname, phone, active=False):
+        """
+        Initializes a new User object with the provided data.
+
+        Args:
+            email (str): The user's email address.
+            ippis (str): The user's IPPIS number.
+            first_name (str, optional): User's first name (defaults to None).
+            surname (str, optional): User's surname (defaults to None).
+            phone (str, optional): User's phone number (defaults to None).
+            active (bool, optional): Flag indicating if the user is active (defaults to False).
+        """
+        
         self.email = email
         self.ippis = ippis
         self.first_name = first_name
@@ -68,24 +93,56 @@ class User(db.Model):
 
 
 class ActiveUser(db.Model):
+    """
+    Represents a user categorized as active based on processing results.
+
+    Attributes:
+        id (int): Primary key for the record.
+        ippis (str): IPPIS number of the active user (not null).
+    """
+    
     __tablename__ = "active"
     id = db.Column(db.Integer, primary_key=True)
     ippis = db.Column(db.String(20), nullable=False)
 
 
 class InactiveUser(db.Model):
+    """
+    Represents a user categorized as inactive based on processing results.
+
+    Attributes:
+        id (int): Primary key for the record.
+        ippis (str): IPPIS number of the inactive user (not null).
+    """
+    
     __tablename__ = "inactive_users"
     id = db.Column(db.Integer, primary_key=True)
     ippis = db.Column(db.String(20), nullable=False)
 
 
 class UnknownUser(db.Model):
+    """
+    Represents a user whose status is unknown based on processing results.
+
+    Attributes:
+        id (int): Primary key for the record.
+        ippis (str): IPPIS number of the unknown user (not null).
+    """
     __tablename__ = "unknown_users"
     id = db.Column(db.Integer, primary_key=True)
     ippis = db.Column(db.String(20), nullable=False)
 
 
 class Admins(db.Model):
+    """
+    Represents an administrator user with login credentials.
+
+    Attributes:
+        id (int): Primary key for the admin record, auto-increments.
+        username (str): Username for admin login (unique, not null).
+        password_hash (str): Hashed password for secure storage (not null).
+    """
+    
     __tablename__ = "admins"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     username = db.Column(db.String(20), unique=True, nullable=False)
@@ -93,13 +150,28 @@ class Admins(db.Model):
 
     @property
     def password(self):
+        """
+        Password attribute is read-only for security purposes, attempting to access it raises an error.
+        """
         raise AttributeError("password is not a readable attribute")
 
     @password.setter
     def password(self, password):
+        """
+         Sets the password to be used for authenticating. This is a string of length 256 and should be used in conjunction with the : meth : ` password_hash ` method
+        """
         self.password_hash = generate_password_hash(str(password))
 
     def verify_password(self, password):
+        """
+         Verify a password against the hash. This is used to verify the user's password before logging in to the system
+         
+         Args:
+         	 password: The password to verify.
+         
+         Returns: 
+         	 True if the password matches the hash False otherwise. Note that a return value of False does not mean that the password was not correct
+        """
         return check_password_hash(self.password_hash, str(password))
 
 
@@ -108,8 +180,31 @@ app.jinja_env.filters["datetimeformat"] = datetimeformat
 
 
 def login_required(route):
+    """
+    Decorator that restricts access to a route for logged-in users only.
+
+    This decorator checks if a username is present in the session data. If not, it flashes an error message indicating the user needs to log in and redirects them to the login page. If a username is found, it retrieves the corresponding Admin user object from the database using SQLAlchemy. If the user is not found, it also flashes an error message and redirects to the login page. Otherwise, the original route function is called, allowing access to the protected route.
+
+    Args:
+        route (function): The route function to be decorated.
+
+    Returns:
+        function: The decorated route function.
+    """
     @functools.wraps(route)
     def wrapper(*args, **kwargs):
+        """
+        Wrapper function that performs the login check and redirection.
+
+        This function checks the session for a username and retrieves the corresponding Admin user if found. If not logged in or user not found, it displays an error message and redirects to login. Otherwise, it calls the original route function with the provided arguments.
+
+        Args:
+            *args: Arguments passed to the decorated route function.
+            **kwargs: Keyword arguments passed to the decorated route function.
+
+        Returns:
+            The return value of the decorated route function.
+        """
         if "username" not in session:
             flash("You need to be logged in to view this page.", 'error')
             return redirect(url_for("login"))
@@ -125,6 +220,25 @@ def login_required(route):
 @app.route("/")
 @app.route("/login/", methods=["GET", "POST"])
 def login():
+    """
+    Login route for admins.
+
+    This route handles both GET and POST requests for the login functionality.
+
+    GET requests:
+        - Renders the "login.html" template with the title "Login-Form".
+
+    POST requests (form submission):
+        - Retrieves username (converted to lowercase) and password from the form data.
+        - Queries the database for an Admin user with the provided username using `Admins.query.filter_by`.
+        - If a user is found and the password matches (verified using `user.verify_password(password)`):
+            - Flashes a success message indicating successful login.
+            - Stores the username in the session for future reference.
+            - Redirects the user to the `/directories` route, passing a default directory (`base_dir`) as an argument.
+        - If the username or password is incorrect, it flashes an error message and re-renders the login template.
+    
+    """
+        
     if request.method == "POST":
         username = request.form.get("username").lower()
         password = request.form.get("password")
@@ -140,6 +254,15 @@ def login():
 
 @app.route("/logout/", methods=['POST'])
 def logout():
+    """
+    Logout route for admins.
+
+    This route handles POST requests for logging out a user.
+
+    - Removes the username key from the session using `session.pop('username', None)`.
+    - Flashes a success message indicating successful logout.
+    - Redirects the user back to the login page (`/login`).
+    """
     session.pop('username', None)  # Remove username from session
     flash('Logged out successfully!', 'success')
     return redirect(url_for('login'))
@@ -149,8 +272,19 @@ def logout():
 @login_required
 def upload():
     """
-    Upload a file to the directory. If the file exists it will be overwritten.
-    @return redirect to the directories page with the file uploaded.
+    Uploads a file submitted through a POST request.
+
+    This route handles file uploads. It expects a file named "file" to be included in the request data.
+
+    Args:
+        request (flask.Request): The incoming request object.
+
+    Returns:
+        flask.Response: A redirect response to the directories route
+            with a success or error message depending on the upload outcome.
+
+    Raises:
+        KeyError: If the request doesn't contain a file named "file".
     """
     file = request.files.get("file")
     filename = str(file.filename)
@@ -177,6 +311,25 @@ def upload():
 @app.route("/directories/", methods=["GET", "POST"])
 @login_required
 def directories():
+    """
+    Displays a paginated list of files in the specified directory.
+
+    This route handles both GET and POST requests for browsing directories.
+
+    GET requests:
+        - Retrieves the relative directory path from the query string parameter "rel_directory".
+        - Defaults to "base_dir" if no directory is specified.
+
+    POST requests:
+        - Retrieves the relative directory path and page number from the request form.
+
+    Args:
+        request (flask.Request): The incoming request object.
+
+    Returns:
+        flask.Response: The rendered directories.html template with file listing
+            and pagination information.
+    """
     if request.method == "POST":
         rel_directory = request.form.get('rel_directory')
         page = int(request.form.get('page', 1))
@@ -324,6 +477,22 @@ def retrieve_selected_path():
 @app.route("/split_encrypt/", methods=["POST"])
 @login_required
 def split_encrypt():
+    """
+    Initiates the process of splitting and encrypting a file uploaded through a POST request.
+
+    This route handles file splitting and encryption requests. It expects a file path
+    to be submitted in the request form under the key "file".
+
+    Args:
+        request (flask.Request): The incoming request object.
+
+    Returns:
+        flask.Response: The rendered progress.html template with a unique task ID
+            and encoded folder path for progress tracking.
+
+    Raises:
+        Exception: If an error occurs during file processing.
+    """
     try:
         task_id = str(time.time())  # Generate a unique task ID
         progress[task_id] = 0  # Initialize progress
@@ -335,7 +504,7 @@ def split_encrypt():
         
         folder_encoded = quote(file_path)            
 
-        # Run the splitter function in the background
+        # Run the splitter function in a separate thread for asynchronous processing.
         thread = Thread(target=splitter, 
                         args=(str(file), file_path, task_id))
         thread.start()
@@ -351,12 +520,38 @@ def split_encrypt():
 
 @app.route("/progress/<task_id>")
 def progress_status(task_id):
+    """
+    Provides the progress status for a split and encrypt task identified by its task ID.
+
+    This route retrieves the progress information associated with a specific task ID
+    from the `progress` dictionary.
+
+    Args:
+        task_id (str): The unique identifier for the split and encrypt task.
+
+    Returns:
+        flask.json. jsonify: A JSON response containing the progress value (integer).
+    """
     return jsonify({"progress": progress.get(task_id, 0)})
 
 
 @app.route("/query_db/", methods=["GET", "POST"])
 @login_required
 def query_db():
+    """
+    Handles form submissions for database queries related to a specific folder.
+
+    This route expects a folder path to be submitted in the request form under the key "folder".
+
+    Args:
+        request (flask.Request): The incoming request object.
+
+    Returns:
+        flask.Response:
+            - A redirect to the directories route with an error message if no folder path is provided.
+            - The rendered query_db.html template with the decoded folder path
+              for further database interaction if a folder path is provided.
+    """
     folder = request.form.get("folder")
     if not folder:
         return redirect(url_for("directories", rel_directory='base_dir'))
@@ -367,7 +562,23 @@ def query_db():
 
 @app.route("/results/", methods=["GET", "POST"])
 @login_required
-def results():    
+def results():
+    """
+    Processes user data for a specified folder and displays categorization results.
+
+    This route handles form submissions from the query_db.html page. It expects a folder path
+    encoded as "folder" in the request form.
+
+    Args:
+        request (flask.Request): The incoming request object.
+
+    Returns:
+        flask.Response: The rendered results.html template with user categorization
+            counts and the folder path.
+
+    Raises:
+        KeyError: If the request doesn't contain the "folder" key.
+    """    
     folder_encoded = request.form.get("folder")
     if not folder_encoded:
         return redirect(url_for("directories", rel_directory='base_dir'))
@@ -408,7 +619,25 @@ def results():
 
 @app.route("/view_users/<category>/", methods=["GET", "POST"])
 @login_required
-def view_users(category):    
+def view_users(category):
+    """
+    Displays a paginated list of users for a specified category.
+
+    This route handles GET and POST requests for viewing users categorized as active,
+    inactive, or unknown. It retrieves users based on the provided category and
+    supports pagination for large datasets.
+
+    Args:
+        request (flask.Request): The incoming request object.
+        category (str): The user category ("active", "inactive", or "unknown").
+
+    Returns:
+        flask.Response: The rendered view_users.html template with user list and pagination.
+
+    Raises:
+        ValueError: If an invalid category is provided.
+    """
+ 
     page = request.args.get('page', 1, type=int)
     per_page = 100  # Number of users per page
     
@@ -436,6 +665,17 @@ def view_users(category):
 
 @app.route("/back_to_result/")
 def back_to_result():
+    """
+    Renders the results.html template with previously stored user category counts and folder path.
+
+    This route serves as a "back" button functionality, retrieving user category counts
+    (active, inactive, unknown) and folder path from session variables set in the `results`
+    route. It then renders the `results.html` template with this information.
+
+    Returns:
+        flask.Response: The rendered results.html template with previously stored user
+            category counts and folder path.
+    """
     folder = unquote(session["folder"])
     active = session["active_count"]
     inactive = session["inactive_count"]
@@ -449,6 +689,21 @@ def back_to_result():
 @app.route("/send_mail/", methods=["POST"])
 @login_required
 def send_mail():
+    """
+    Initiates the process of sending emails for users in a specified folder asynchronously.
+
+    This route handles POST requests to send email notifications to users
+    with attached PDFs. It retrieves the folder path from the request form,
+    generates a unique task ID for progress tracking, and initializes a dictionary
+    `progress_data` to store task information (logs, errors, status, counts).
+
+    Args:
+        request (flask.Request): The incoming request object.
+
+    Returns:
+        flask.Response: The rendered results_visual.html template with task ID,
+            encoded folder path, and filename for progress visualization.
+    """
     folder = request.form.get("folder")
     task_id = str(time.time())  # Generate a unique task ID
     progress_data[task_id] = {
@@ -478,6 +733,25 @@ def send_mail():
 
 
 def send_emails(folder, task_id):
+    """
+    Sends emails with attachments to users listed in the specified folder.
+
+    This function runs in a separate thread and performs the following steps:
+        1. Defines paths for success and failed email folders within the given folder.
+        2. Creates the folders if they don't exist.
+        3. Retrieves a list of active users' IPPIS from the database.
+        4. Filters files within the folder based on active users' IPPIS.
+        5. Iterates through each file, sending an email with the attachment to the
+           corresponding user. Updates progress data and logs based on success/failure.
+        6. Marks the task as completed in `progress_data`.
+
+    Args:
+        folder (str): The path to the folder containing email attachments.
+        task_id (str): The unique identifier for the email sending task.
+
+    Raises:
+        Exception: If an error occurs during email sending or file operations.
+    """
     with app.app_context():
         success = os.path.join(folder, "success_mail")
         failed = os.path.join(folder, "failed_mail")
@@ -541,6 +815,23 @@ def send_emails(folder, task_id):
 
 @app.route("/progress_mail/<task_id>/")
 def progress_mail(task_id):
+    """
+    Provides progress information for an email sending task identified by its task ID.
+
+    This route retrieves the progress data associated with a specific task ID
+    from the `progress_data` dictionary. It returns a JSON response containing
+    information like total emails, sent emails, failed emails, logs, and errors.
+
+    Args:
+        task_id (str): The unique identifier for the email sending task.
+
+    Returns:
+        flask.json. jsonify: A JSON response containing the progress data for the task.
+
+    Raises:
+        KeyError: If the `task_id` is not found in the `progress_data` dictionary.
+    """
+
     return jsonify(
         progress_data.get(
             task_id, {"total": 0, "sent": 0,
@@ -551,6 +842,17 @@ def progress_mail(task_id):
 
 @app.route("/retry_page/", methods=["GET", "POST"])
 def retry_page():
+    """
+    Renders the retry_page.html template for retrying a failed email notification.
+
+    This route handles both GET and POST requests to display a retry page.
+    It retrieves the folder path, task ID, and filename from the request form or arguments.
+    These values are then used to populate the retry_page.html template.
+
+    Returns:
+        flask.Response: The rendered retry_page.html template with task ID, folder path,
+            and filename for retrying a failed email notification.
+    """
     folder = request.form.get("folder") or request.args.get("folder")
     task_id = request.form.get("task_id") or request.args.get("task_id")
     filename = request.form.get("filename") or request.args.get("filename")
@@ -561,6 +863,21 @@ def retry_page():
 
 @app.route("/retry_logs/", methods=["GET"])
 def retry_logs():
+    """
+    Provides paginated access to email sending task logs for a specified task ID.
+
+    This route retrieves logs associated with an email sending task from the
+    `progress_data` dictionary. It supports pagination by accepting a page number
+    as a query argument. The route returns a JSON response containing the requested
+    page of logs, total number of logs, and total number of log pages.
+
+    Args:
+        task_id (str): The unique identifier for the email sending task.
+
+    Returns:
+        flask.json. jsonify: A JSON response containing paginated email sending task logs,
+            total log count, and total number of log pages.
+    """
     task_id = request.args.get("task_id")
     page = int(request.args.get("page", 1))
     per_page = 20
@@ -575,6 +892,21 @@ def retry_logs():
 
 @app.route("/retry_errors/", methods=["GET"])
 def retry_errors():
+    """
+    Provides paginated access to email sending task errors for a specified task ID.
+
+    This route retrieves errors associated with an email sending task from the
+    `progress_data` dictionary. It supports pagination by accepting a page number
+    as a query argument. The route returns a JSON response containing the requested
+    page of errors, total number of errors, and total number of error pages.
+
+    Args:
+        task_id (str): The unique identifier for the email sending task.
+
+    Returns:
+        flask.json. jsonify: A JSON response containing paginated email sending task errors,
+            total error count, and total number of error pages.
+    """
     task_id = request.args.get("task_id")
     page = int(request.args.get("page", 1))
     per_page = 15
@@ -626,6 +958,31 @@ def retry_send_mail():
 
 
 def retry_send_emails(main_folder, task_id, failed_folder):
+    """
+    Retries sending emails that previously failed for a specified task.
+
+    This function reattempts sending emails associated with a task identified by
+    `task_id`. It retrieves active users and failed email filenames. It then
+    processes both new and failed email files:
+
+    1. Combines new email files (from the main folder) with failed email files.
+    2. Iterates through each file, prioritizing new files.
+        - Checks for cancellation status in `progress_data`.
+        - Retrieves user information and email address based on filename.
+        - Attempts to send the email with an attachment.
+        - Updates progress data (logs, errors, counts) based on success/failure.
+        - Moves successful files to the "success_mail" folder within the main folder.
+
+    3. Marks the task as completed in `progress_data`.
+
+    Args:
+        main_folder (str): The path to the main folder containing email attachments.
+        task_id (str): The unique identifier for the email sending task.
+        failed_folder (str): The path to the folder containing failed email attachments.
+
+    Raises:
+        Exception: If an error occurs during email sending or file operations.
+    """
     with app.app_context():
         db_found = User.query.all()
         active_found, inactive, unknown = query_string(main_folder, db_found)
@@ -696,6 +1053,15 @@ def retry_send_emails(main_folder, task_id, failed_folder):
 
 @app.route("/cancel_task/", methods=["POST"])
 def cancel_task():
+    """Cancels an email sending task by task ID.
+
+    - Retrieves task ID, folder, and filename from request form.
+    - Cancels task if ID exists in `progress_data`.
+    - Returns JSON with cancellation status and retry page redirect URL.
+
+    Raises:
+        KeyError: If task ID is not found.
+    """
     try:
         task_id = request.form["task_id"]
         folder = request.form["folder"]
@@ -722,9 +1088,28 @@ def cancel_task():
 
 @app.route("/export_logs/", methods=["POST", "GET"])
 def export_logs():
+    """
+    Exports email sending task logs and errors as a ZIP archive.
+
+    - Retrieves task ID from the request form.
+    - Generates CSV data for logs and errors from `progress_data`.
+    - Creates a ZIP archive containing logs.csv and errors.csv.
+    - Flashes a success message with the filename.
+    - Returns the ZIP archive for download.
+
+    Raises:
+        KeyError: If the task ID is not found in `progress_data`.
+    """
     task_id = request.form.get("task_id")
 
     def generate_csv(data, columns):
+        """
+        Generates CSV data for logs and errors from task data.
+
+        - Takes task data dictionary as input.
+        - Returns separate lists of dictionaries for logs and errors
+        formatted for CSV generation.
+    """
         output = StringIO()
         writer = csv.DictWriter(output, fieldnames=columns)
         writer.writeheader()
@@ -776,10 +1161,21 @@ def export_logs():
 @app.route("/add_user/", methods=["GET", "POST"])
 @login_required
 def add_user():
+    """
+    Adds a new user to the database.
+
+    - Handles GET and POST requests.
+    - Renders the "add_user.html" template for GET requests.
+    - Validates and adds user data to the database on POST requests.
+    - Flashes success or error messages based on the outcome.
+    - Redirects to the "manage_users" page after processing.
+    """
     if request.method != "POST":
         return render_template("add_user.html", title="Add User")
     
     try:
+        # ... user data retrieval and processing ...
+
         email = request.form.get("email")
         ippis = request.form.get("ippis")
         first_name = request.form.get("first_name")
@@ -809,6 +1205,15 @@ def add_user():
 @app.route("/remove_user/", methods=["GET", "POST"])
 @login_required
 def remove_user():
+    """Removes a user from the database.
+
+    - Handles GET and POST requests.
+    - Retrieves user email or IPPIS from the request form.
+    - Queries the database for the user.
+    - Deletes the user if found, otherwise raises an exception.
+    - Flashes success or error messages based on the outcome.
+    - Redirects to the "manage_users" page after processing.
+    """
     try:
         email = request.form.get("email")
         ippis = request.form.get("ippis")
@@ -831,6 +1236,14 @@ def remove_user():
 @app.route("/add_admin/", methods=["GET", "POST"])
 @login_required
 def add_admin():
+    """Creates a new administrator account.
+
+    - Renders "add_admin.html" template on GET requests.
+    - Validates and creates a new `Admins` object on POST requests.
+    - Hashes and stores the password securely.
+    - Flashes success or error messages based on the outcome.
+    - Redirects to "manage_admins" page after processing.
+    """
     if request.method != "POST":
         return render_template("add_admin.html", title="Add Admin")
     
@@ -861,6 +1274,15 @@ def add_admin():
 @app.route("/remove_admin/", methods=["GET", "POST"])
 @login_required
 def remove_admin():
+    """Removes an administrator from the system.
+
+    - Handles GET and POST requests.
+    - Retrieves admin username from the request form.
+    - Queries the database for the admin.
+    - Prevents deleting the currently logged-in admin.
+    - Deletes the admin and flashes success message if found.
+    - Flashes error message and redirects if admin not found.
+    """
     try:
         user = request.form.get("admin")
 
@@ -886,12 +1308,14 @@ def remove_admin():
 @app.route('/admin_control/', methods=['GET'])
 @login_required
 def admin_control():
+    """Renders the admin control panel template."""
     return render_template('admin_control.html')
 
 
 @app.route('/manage_users/', methods=['GET'])
 @login_required
 def manage_users():
+    """Presents a paginated list of all users."""
     page = request.args.get('page', 1, type=int)
     per_page = 100  # Number of users per page
     users = User.query.paginate(page=page, per_page=per_page)
@@ -904,7 +1328,13 @@ def manage_users():
 
 @app.route('/manage_admins/', methods=['GET', 'POST'])
 @login_required
-def manage_admins():    
+def manage_admins():
+    """Manages administrator accounts.
+
+    - Lists admins with pagination.
+    - Allows changing admin password on POST requests.
+    - Flashes success or error messages based on outcome.
+    """   
     page = request.args.get('page', 1, type=int)
     per_page = 10  # Number of admins per page
     total_admins = Admins.query.count()
@@ -930,6 +1360,13 @@ def manage_admins():
 @app.route('/change_pswd/', methods=['POST', 'GET'])
 @login_required
 def change_pswd():
+    """Allows admins to change their password.
+
+    - Handles password change requests on POST.
+    - Validates current password and updates new password securely.
+    - Flashes success or error messages based on outcome.
+    - Redirects to admin management page after processing.
+    """
     if request.method == 'POST':
         try:
             user = request.form.get('admin_username') 
