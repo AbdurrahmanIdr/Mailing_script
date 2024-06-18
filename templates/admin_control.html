@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="admin-control-plane">
+  <h1>Admin Control Panel</h1>
+
+  <div class="admin-control-buttons">
+
+    <div class="admin-control-item">
+      <img
+        src="{{ url_for('static', filename='icons/management.gif') }}"
+        alt="Manage Users"/>
+      <a href="{{ url_for('manage_users') }}" >Manage Users</a>
+    </div>
+
+    <div class="admin-control-item">
+      <img
+        src="{{ url_for('static', filename='icons/user.gif') }}"
+        alt="Manage Administrators" />
+      <a href="{{ url_for('manage_admins') }}" >Manage Admins</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
