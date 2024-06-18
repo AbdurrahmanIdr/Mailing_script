@@ -19,4 +19,7 @@ if 'migrations' not in os.listdir('.'):
         print('admin account created with 12345 as the default password')
         
 else:
+    os.system('flask db migrate -m "db update"')
+    os.system('flask db upgrade')
     print('admin account default password is already created')
+    print('db migrated successfully.')
