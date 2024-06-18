@@ -1,51 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>
-      {% if title %}
-        Notification Script - {{ title }}
-      {% else %}
-        Notification Script
-      {% endif %}
-    </title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
-    {% block style %}
-
-    {% endblock %}
-    <script src="{{ url_for('static', filename='scripts/base_script.js') }}"></script>
-    {% block script %}
-
-    {% endblock %}
-  </head>
-  <body>
-    {% block login %}
-
-    {% endblock %}
-    <div class="container">
-      <header>
-        <h1><a id="bar-h1" href="{{ url_for('directories', rel_directory='base_dir') }}">Notification Script</a></h1>
-      </header>
-      <div>
-        {% with messages=get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <ul>
-              {% for category, message in messages %}
-                <li class="flash {{ category }}">{{ message }}</li>
-              {% endfor %}
-            </ul>
-          {% endif %}
-        {% endwith %}
-      </div>
-
-      {% block body %}
-
-      {% endblock %}
-
-      <footer>
-        <p>&copy; 2024 NASRDA ICT.</p>
-      </footer>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if title %} Notification Script - {{ title }} {% else %} Notification Script {% endif %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  {% block style %} {% endblock %}
+  <script src="{{ url_for('static', filename='scripts/base_script.js') }}"></script>
+  {% block script %} {% endblock %}
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>
+        <a id="bar-h1" href="{{ url_for('directories', rel_directory='base_dir') }}">Notification Script</a>
+      </h1>
+    </header>
+    <div class="flash-container">
+      {% with messages=get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul>
+            {% for category, message in messages %}
+              <li class="flash {{ category }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
     </div>
-  </body>
+    {% block body %} {% endblock %}
+    <footer>
+      <p>&copy; 2024 NASRDA ICT.</p>
+    </footer>
+  </div>
+</body>
 </html>
