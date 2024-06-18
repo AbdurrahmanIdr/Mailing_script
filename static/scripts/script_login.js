@@ -1,16 +1,15 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const form = document.getElementById("login-form");
   const usernameInput = document.getElementById("username");
   const passwordInput = document.getElementById("password");
   const usernameIcon = document.getElementById("username-icon");
   const passwordIcon = document.getElementById("password-icon");
 
   const handleFocus = (icon) => {
-    icon.classList.add("hidden");
+    icon.style.fill = "#4CAF50";
   };
 
   const handleBlur = (icon) => {
-    icon.classList.remove("hidden");
+    icon.style.fill = "white";
   };
 
   usernameInput.addEventListener("focus", () => handleFocus(usernameIcon));
@@ -18,5 +17,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
   passwordInput.addEventListener("focus", () => handleFocus(passwordIcon));
   passwordInput.addEventListener("blur", () => handleBlur(passwordIcon));
-
 });
+
