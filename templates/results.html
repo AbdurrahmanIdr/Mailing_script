@@ -1,11 +1,37 @@
 {% extends 'base.html' %}
 {% block body %}
-    <h2>Query Results</h2>
-    <p>Active users found: {{ active }} <a href="{{ url_for('view_users', category='active') }}">View</a></p>
-    <p>Inactive users: {{ inactive }} <a href="{{ url_for('view_users', category='inactive') }}">View</a></p>
-    <p>Unknown users: {{ unknown }} <a href="{{ url_for('view_users', category='unknown') }}">View</a></p>
-    <form action="{{ url_for('send_mail') }}" method="post" class="form_btn">
-        <input type="hidden" name="folder" value="{{ folder }}">
-        <button type="submit">Send Mail</button>
-    </form>
+    <div class="query-results">
+        <h2>Query Results</h2>
+
+        <div class="result-item">
+            <img src="{{ url_for('static', filename='icons/active.png') }}" alt="Active Users" class="result-icon"/>
+            <p>Active users (DB + SLIP): {{ active }} 
+                <a href="{{ url_for('view_users', category='active') }}" class="view-link">View</a>
+            </p>
+        </div>
+
+        <div class="result-item">
+            <img src="{{ url_for('static', filename='icons/delete1.png') }}" alt="Inactive Users" class="result-icon"/>
+            <p>Inactive users (SLIP only): {{ inactive }} 
+                <a href="{{ url_for('view_users', category='inactive') }}" class="view-link">View</a>
+            </p>
+        </div>
+
+        <div class="result-item">
+            <img src="{{ url_for('static', filename='icons/unknown1.png') }}" alt="Unknown Users" class="result-icon"/>
+            <p>Unknown users (DB only): {{ unknown }} 
+                <a href="{{ url_for('view_users', category='unknown') }}" class="view-link">View</a>
+            </p>
+        </div>
+
+        <div class="form_btn">
+            <form action="{{ url_for('send_mail') }}" method="post">
+                <input type="hidden" name="folder" value="{{ folder }}">
+                <button class="btn btn-warning" type="submit">
+                    <img src="{{ url_for('static', filename='icons/email1.png') }}" alt="Send Mail" class="button-icon"/>
+                    Send Mail
+                </button>
+            </form>
+        </div>
+    </div>
 {% endblock %}
